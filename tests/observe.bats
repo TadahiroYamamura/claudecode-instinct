@@ -57,62 +57,33 @@ teardown() {
   [ ! -f "$TMPDIR/observations.jsonl" ]
 }
 
-@test "detects project dir from manifest file (go.mod) before git root in monorepo" {
-  local git_repo
-  git_repo="$(mktemp -d)"
-  git -C "$git_repo" init -q
-
-  # モノレポ構造: git_root/service-a/go.mod, cwd は service-a/pkg/
-  local service_dir="$git_repo/service-a"
-  local cwd_dir="$service_dir/pkg"
+@test "detects project dir by finding .instinct-db walking up from cwd" {
+  local project_dir
+  project_dir="$(mktemp -d)"
+  mkdir -p "$project_dir/.instinct-db"
+  local cwd_dir="$project_dir/src/pkg"
   mkdir -p "$cwd_dir"
-  touch "$service_dir/go.mod"
 
   local input="{\"tool_name\":\"Bash\",\"session_id\":\"sess-1\",\"cwd\":\"$cwd_dir\"}"
 
   unset CLAUDE_PROJECT_DIR
   echo "$input" | bash "$OBSERVE_SH" post
 
-  # git root ではなく go.mod のあるディレクトリに書き込まれること
-  [ -f "$service_dir/observations.jsonl" ]
-  [ ! -f "$git_repo/observations.jsonl" ]
-  rm -rf "$git_repo"
+  [ -f "$project_dir/observations.jsonl" ]
+  rm -rf "$project_dir"
 }
 
-@test "detects project dir from manifest file (package.json) before git root in monorepo" {
-  local git_repo
-  git_repo="$(mktemp -d)"
-  git -C "$git_repo" init -q
+@test "skips silently when no .instinct-db found in cwd hierarchy" {
+  local tmpdir
+  tmpdir="$(mktemp -d)"
 
-  local service_dir="$git_repo/frontend"
-  local cwd_dir="$service_dir/src/components"
-  mkdir -p "$cwd_dir"
-  touch "$service_dir/package.json"
-
-  local input="{\"tool_name\":\"Read\",\"session_id\":\"sess-1\",\"cwd\":\"$cwd_dir\"}"
+  local input="{\"tool_name\":\"Bash\",\"session_id\":\"sess-1\",\"cwd\":\"$tmpdir\"}"
 
   unset CLAUDE_PROJECT_DIR
   echo "$input" | bash "$OBSERVE_SH" post
 
-  [ -f "$service_dir/observations.jsonl" ]
-  [ ! -f "$git_repo/observations.jsonl" ]
-  rm -rf "$git_repo"
-}
-
-@test "detects project dir from cwd git root when CLAUDE_PROJECT_DIR is unset" {
-  local git_repo
-  git_repo="$(mktemp -d)"
-  git -C "$git_repo" init -q
-  local subdir="$git_repo/src"
-  mkdir -p "$subdir"
-
-  local input="{\"tool_name\":\"Bash\",\"session_id\":\"sess-1\",\"cwd\":\"$subdir\"}"
-
-  unset CLAUDE_PROJECT_DIR
-  echo "$input" | bash "$OBSERVE_SH" post
-
-  [ -f "$git_repo/observations.jsonl" ]
-  rm -rf "$git_repo"
+  [ ! -f "$tmpdir/observations.jsonl" ]
+  rm -rf "$tmpdir"
 }
 
 @test "PreToolUse includes tool_input in observation and truncates at 5000 chars" {

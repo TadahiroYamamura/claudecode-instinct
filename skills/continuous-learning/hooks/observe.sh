@@ -19,22 +19,16 @@ _agent_id=$(echo "$INPUT_JSON" | python3 -c "import json,sys; print(json.load(sy
 if [ -z "${CLAUDE_PROJECT_DIR:-}" ]; then
   _cwd=$(echo "$INPUT_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('cwd',''))" 2>/dev/null || true)
   if [ -n "$_cwd" ]; then
-    # Priority 2: walk up from cwd looking for project manifest files
     CLAUDE_PROJECT_DIR=$(python3 -c "
-import os, sys
-markers = ['go.mod','package.json','Makefile','Cargo.toml','pyproject.toml','pom.xml','build.gradle']
+import os
 path = os.path.abspath('$_cwd')
 while True:
-    if any(os.path.exists(os.path.join(path, m)) for m in markers):
+    if os.path.isdir(os.path.join(path, '.instinct-db')):
         print(path); break
     parent = os.path.dirname(path)
     if parent == path: break
     path = parent
 " 2>/dev/null || true)
-    # Priority 3: git root fallback
-    if [ -z "$CLAUDE_PROJECT_DIR" ]; then
-      CLAUDE_PROJECT_DIR=$(git -C "$_cwd" rev-parse --show-toplevel 2>/dev/null || true)
-    fi
   fi
 fi
 [ -z "${CLAUDE_PROJECT_DIR:-}" ] && exit 0
