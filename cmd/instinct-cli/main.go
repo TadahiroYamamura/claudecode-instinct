@@ -40,11 +40,8 @@ func instinctDataDir(projectDir string) string {
 	return filepath.Join(instinctDbDir(projectDir), "data")
 }
 
-func findProjectDir() (string, error) {
-	dir, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
+func findProjectDirFrom(startDir string) (string, error) {
+	dir := startDir
 	for {
 		if _, err := os.Stat(instinctDbDir(dir)); err == nil {
 			return dir, nil
@@ -55,6 +52,32 @@ func findProjectDir() (string, error) {
 		}
 		dir = parent
 	}
+}
+
+func findProjectDir() (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	return findProjectDirFrom(dir)
+}
+
+func dispatch(args []string, cwd string) error {
+	if len(args) > 0 && args[0] == "setup" {
+		return runSetup(cwd)
+	}
+	projectDir, err := findProjectDirFrom(cwd)
+	if err != nil {
+		return err
+	}
+	conn, cleanup, err := openConn(context.Background(), instinctDataDir(projectDir))
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+	return run(args, conn, func(_ string) (string, error) {
+		return resolveProjectID(projectDir)
+	})
 }
 
 func main() {

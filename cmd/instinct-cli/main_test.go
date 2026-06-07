@@ -1,8 +1,23 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 )
+
+// dispatch(["setup"], dir)が.instinct-db/data/を作成する
+func TestCLI_SetupCommand_CreatesInstinctDb(t *testing.T) {
+	dir := t.TempDir()
+
+	if err := dispatch([]string{"setup"}, dir); err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(dir, ".instinct-db", "data")); os.IsNotExist(err) {
+		t.Error(".instinct-db/data/ was not created")
+	}
+}
 
 // run(["insert", ...])がDBにレコードを保存する
 func TestCLI_InsertCommand_StoresRecord(t *testing.T) {
