@@ -89,18 +89,14 @@ your-project/
 echo '.instinct-db/data/' >> .gitignore
 ```
 
-`config.yml` を必要に応じて編集する（`dolt.refs` はプロジェクト名から自動推定済み）。
+`config.yml` の初期内容（`instinct-cli setup` が自動生成）。
 
 ```yaml
-observer:
-  enabled: true
-  trigger_every: 20       # 何観察ごとに Haiku を起動するか
-  active_hours: "800-2300"
-
 dolt:
-  remote_url: "git@github.com:ORG/REPO.git"
-  refs: "refs/dolt/your-project"
+  refs: refs/dolt/your-project/
 ```
+
+`observer.*` / `dolt.remote_url` などの追加設定は Phase 2 以降で対応予定。
 
 ---
 
@@ -117,18 +113,24 @@ claude
 20 ツール操作が蓄積されると observer-loop が自動的に instinct 生成を試みる。
 生成された instinct は次のコマンドで確認できる（`list` サブコマンドは Phase 2 実装予定）。
 
+現時点では `instinct-cli list` が未実装（Phase 2 予定）のため、Dolt CLI で直接確認する。
+
 ```bash
-# 現時点での確認方法（直接 DB を参照）
-sqlite3 .instinct-db/data/instincts/... # Dolt 形式のため dolt CLI が必要
+cd .instinct-db/data
+dolt sql -q "SELECT content, trigger_desc, scope FROM instincts ORDER BY created_at DESC LIMIT 10"
 ```
+
+Dolt CLI がなければ MySQL クライアント（mysql コマンド）でも接続できる。
 
 ---
 
 ## アンインストール
 
 ```bash
-# プラグインを削除
-claude plugin uninstall TadahiroYamamura/claudecode-instinct
+# プラグインを削除（GitHub からインストールした場合）
+claude plugin uninstall claudecode-instinct@TadahiroYamamura
+# ローカルパスからインストールした場合
+claude plugin uninstall claudecode-instinct@claudecode-instinct
 
 # プロジェクトの DB を削除（任意）
 rm -rf .instinct-db/
