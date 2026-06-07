@@ -13,7 +13,7 @@ func runSetup(projectDir string) error {
 	}
 
 	projectName := filepath.Base(projectDir)
-	configPath := filepath.Join(projectDir, ".instinct-db", "config.yml")
+	configPath := filepath.Join(instinctDbDir(projectDir), "config.yml")
 	content := fmt.Sprintf("dolt:\n  refs: refs/dolt/%s/\n", projectName)
 	return os.WriteFile(configPath, []byte(content), 0o644)
 }
