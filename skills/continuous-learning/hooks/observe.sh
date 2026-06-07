@@ -6,6 +6,11 @@ INPUT_JSON=$(cat)
 
 [ -z "$INPUT_JSON" ] && exit 0
 
+case "${CLAUDE_CODE_ENTRYPOINT:-cli}" in
+  cli|sdk-ts|claude-desktop) ;;
+  *) exit 0 ;;
+esac
+
 _agent_id=$(echo "$INPUT_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('agent_id',''))" 2>/dev/null || true)
 [ -n "$_agent_id" ] && exit 0
 

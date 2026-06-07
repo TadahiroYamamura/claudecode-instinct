@@ -33,6 +33,14 @@ teardown() {
   grep -q '"session": "sess-abc"' "$TMPDIR/observations.jsonl"
 }
 
+@test "skips observation when CLAUDE_CODE_ENTRYPOINT is not an interactive entrypoint" {
+  local input='{"tool_name":"Bash","session_id":"sess-1","cwd":"/tmp"}'
+
+  echo "$input" | CLAUDE_CODE_ENTRYPOINT=api bash "$OBSERVE_SH" post
+
+  [ ! -f "$TMPDIR/observations.jsonl" ]
+}
+
 @test "skips observation when agent_id is present (subagent session)" {
   local input='{"tool_name":"Bash","session_id":"sess-1","agent_id":"agent-123","cwd":"/tmp"}'
 
