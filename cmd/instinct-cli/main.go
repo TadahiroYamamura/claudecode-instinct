@@ -54,14 +54,6 @@ func findProjectDirFrom(startDir string) (string, error) {
 	}
 }
 
-func findProjectDir() (string, error) {
-	dir, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	return findProjectDirFrom(dir)
-}
-
 func dispatch(args []string, cwd string) error {
 	if len(args) > 0 && args[0] == "setup" {
 		return runSetup(cwd)
@@ -81,24 +73,12 @@ func dispatch(args []string, cwd string) error {
 }
 
 func main() {
-	projectDir, err := findProjectDir()
+	cwd, err := os.Getwd()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-
-	dataDir := instinctDataDir(projectDir)
-	ctx := context.Background()
-	conn, cleanup, err := openConn(ctx, dataDir)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	defer cleanup()
-
-	if err := run(os.Args[1:], conn, func(_ string) (string, error) {
-		return resolveProjectID(projectDir)
-	}); err != nil {
+	if err := dispatch(os.Args[1:], cwd); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
