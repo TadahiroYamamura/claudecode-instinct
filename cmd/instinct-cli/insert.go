@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"database/sql"
-	"flag"
 	"fmt"
 
+	"github.com/alecthomas/kong"
 	"github.com/google/uuid"
 )
 
@@ -19,19 +19,22 @@ type InsertParams struct {
 	ProjectID        string
 }
 
-func runInsert(ctx context.Context, conn *sql.Conn, args []string, projectIDFn func(string) (string, error)) error {
-	fs := flag.NewFlagSet("insert", flag.ContinueOnError)
-	content := fs.String("content", "", "instinct content")
-	trigger := fs.String("trigger", "", "trigger description")
-	domain := fs.String("domain", "", "domain")
-	count := fs.Int("count", 0, "observation count")
-	scope := fs.String("scope", "project", "scope (project|global)")
+type insertFlags struct {
+	Content string `kong:"required,name='content',help='instinct content'"`
+	Trigger string `kong:"name='trigger',help='trigger description'"`
+	Domain  string `kong:"name='domain',help='domain'"`
+	Count   int    `kong:"name='count',help='observation count'"`
+	Scope   string `kong:"name='scope',default='project',help='scope (project|global)'"`
+}
 
-	if err := fs.Parse(args); err != nil {
+func runInsert(ctx context.Context, conn *sql.Conn, args []string, projectIDFn func(string) (string, error)) error {
+	var f insertFlags
+	p, err := kong.New(&f)
+	if err != nil {
 		return err
 	}
-	if *content == "" {
-		return fmt.Errorf("--content is required")
+	if _, err := p.Parse(args); err != nil {
+		return err
 	}
 
 	projectID, err := projectIDFn("")
@@ -40,11 +43,11 @@ func runInsert(ctx context.Context, conn *sql.Conn, args []string, projectIDFn f
 	}
 
 	return insertInstinct(ctx, conn, InsertParams{
-		Content:          *content,
-		TriggerDesc:      *trigger,
-		Domain:           *domain,
-		Scope:            *scope,
-		ObservationCount: *count,
+		Content:          f.Content,
+		TriggerDesc:      f.Trigger,
+		Domain:           f.Domain,
+		Scope:            f.Scope,
+		ObservationCount: f.Count,
 		ProjectID:        projectID,
 	})
 }
