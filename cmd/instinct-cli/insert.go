@@ -36,12 +36,14 @@ func runInsert(ctx context.Context, conn *sql.Conn, args []string, projectIDFn f
 	if _, err := p.Parse(args); err != nil {
 		return err
 	}
+	return execInsert(ctx, conn, f, projectIDFn)
+}
 
+func execInsert(ctx context.Context, conn *sql.Conn, f insertFlags, projectIDFn func(string) (string, error)) error {
 	projectID, err := projectIDFn("")
 	if err != nil {
 		return fmt.Errorf("project id: %w", err)
 	}
-
 	return insertInstinct(ctx, conn, InsertParams{
 		Content:          f.Content,
 		TriggerDesc:      f.Trigger,
