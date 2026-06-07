@@ -79,14 +79,9 @@ instinct-cli setup
 ```
 your-project/
 └── .instinct-db/
-    ├── data/       # Dolt DB 本体（git 管理外）
-    └── config.yml  # プロジェクト固有設定（git 管理）
-```
-
-`.gitignore` に `.instinct-db/data/` を追加する。
-
-```bash
-echo '.instinct-db/data/' >> .gitignore
+    ├── data/         # Dolt DB 本体（git 管理外）
+    ├── .gitignore    # ランタイムファイルの除外ルール（自動生成）
+    └── config.yml    # プロジェクト固有設定（git 管理）
 ```
 
 `config.yml` の初期内容（`instinct-cli setup` が自動生成）。
