@@ -85,9 +85,3 @@ func setupDB(ctx context.Context, dataDir string) error {
 	return nil
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
