@@ -17,7 +17,8 @@ _handle_usr1() {
   {
     "content": "具体的な行動指針",
     "trigger_desc": "この知見を適用すべき状況",
-    "domain": "分野（workflow/code/testing/git など）"
+    "domain": "分野（workflow/code/testing/git など）",
+    "observation_count": この知見の根拠となった観察の件数（整数）
   }
 ]
 
@@ -45,13 +46,15 @@ for item in data:
     content = item.get('content', '')
     trigger = item.get('trigger_desc', '')
     domain = item.get('domain', '')
+    count = str(item.get('observation_count', 0))
     if not content:
         continue
     subprocess.run(
         ['instinct-cli', 'insert',
          '--content', content,
          '--trigger', trigger,
-         '--domain', domain],
+         '--domain', domain,
+         '--count', count],
         env=os.environ, capture_output=True
     )
 " 2>/dev/null || true
