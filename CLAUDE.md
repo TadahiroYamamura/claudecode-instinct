@@ -1,93 +1,50 @@
-# CLAUDE.md — claudecode-instinct plugin
+# claudecode-instinct
 
-## このプロジェクトの概要
+Claude Code の PreToolUse/PostToolUse フックでツール使用を観察し、Haiku がパターンを検出して **instinct**（再利用可能な作業知見）を生成・蓄積するプラグイン。instinct は **Dolt**（MySQL 互換の Git-like DB）に保存し、GitHub 経由でチームと共有する。
 
-Claude Code の PreToolUse/PostToolUse フックでツール使用を観察し、Haiku エージェントがパターンを検出して **instinct**（再利用可能な作業知見）を生成・蓄積する Claude Code プラグイン。
+## 前提知識
 
-instinct の保存先は **Dolt**（MySQL 互換の Git-like DB）で、GitHub 経由でチームと共有する。
+**Dolt**: `dolt` CLI 不要。`dolthub/driver`（Go embedded）でプロセス内に組み込む（CGO 必須・`gcc` が必要）。push/pull は `CALL dolt_push(...)` 等の SQL ストアドプロシージャで行う。→ ADR-0001、ADR-0002、`docs/references/dolt/02_claudecode_instruction.md`
 
----
+**ECC**: observe.sh / observer-loop.sh は ECC（Everything Claude Code）から流用。ECC の YAML ストレージを Dolt に置き換えたのがこのプラグイン。SessionStart フックによる instinct 注入は Phase 2 以降。
 
-## 重要な前提知識
-
-### Dolt の使い方
-- `dolt` CLI は**不要**。`dolthub/driver`（Go embedded driver）でプロセス内に Dolt エンジンを組み込む（CGO 必須・`gcc` が必要）
-- GitHub への push/pull は SQL ストアドプロシージャ（`CALL dolt_push(...)` 等）で行う
-- 詳細: ADR-0001、ADR-0002、`docs/references/dolt/02_claudecode_instruction.md`
-
-### ECC（Everything Claude Code）との関係
-- observe.sh / observer-loop.sh は ECC から流用（`~/work/ECC` にクローン済み）
-- ECC の YAML ベースの instinct ストレージを Dolt に置き換えたのがこのプラグイン
-- セッション開始時の instinct 注入（SessionStart フック）は **Phase 2 以降**
-
----
-
-## アーキテクチャ
+## データフロー
 
 ```
-PreToolUse / PostToolUse フック（hooks.json）
-    ↓ observe-runner.js → observe.sh（ECC流用）
-observations.jsonl（ローカル保存、非共有）
-    ↓ 20観察ごとに SIGUSR1 でトリガー
-observer-loop.sh → claude --model haiku（JSON出力）
-    ↓ シェルが jq でパース
-instinct-cli insert → .instinct-db/data/（Dolt DB）
-    ↓ 手動トリガー
-instinct-cli dedup → Haiku エージェント → dedup_decisions に記録
-    ↓ レビュー・承認後
-instinct-cli push → CALL dolt_push() → GitHub refs/dolt/<project>/
+PreToolUse/PostToolUse フック
+    ↓ observe-runner.js → observe.sh
+observations.jsonl（ローカル・非共有）
+    ↓ 20観察ごとに SIGUSR1
+observer-loop.sh → claude haiku（JSON）
+    ↓ jq
+instinct-cli insert → .instinct-db/（Dolt）
+    ↓ 手動
+instinct-cli dedup → dedup_decisions
+    ↓ レビュー後
+instinct-cli push → GitHub refs/dolt/<project>/
 ```
 
----
-
-## ファイル構成（実装予定）
+## 構成
 
 ```
 claudecode-instinct/
-├── plugin.json
-├── hooks/hooks.json
-├── scripts/hooks/
-│   ├── observe-runner.js
-│   ├── run-with-flags.js
-│   └── plugin-hook-bootstrap.js
+├── plugin.json / hooks/hooks.json
+├── scripts/hooks/            # observe-runner.js など
 ├── skills/continuous-learning/
-│   ├── hooks/observe.sh           # ECC流用
-│   ├── scripts/detect-project.sh
-│   └── agents/
-│       ├── observer-loop.sh
-│       └── session-guardian.sh
-├── cmd/instinct-cli/main.go       # Go CLI（dolthub/driver）
+│   ├── hooks/observe.sh      # ECC流用
+│   └── agents/observer-loop.sh
+├── cmd/instinct-cli/         # Go CLI（dolthub/driver）
 └── docs/adr/
 ```
 
----
+各プロジェクトの `.instinct-db/data/` が Dolt DB 本体（gitignore）、`.instinct-db/config.yml` が設定（git管理）。ブランチ戦略: 個人ブランチ（自動蓄積）→ main（キュレーション）→ チーム共有。→ ADR-0004
 
-## Dolt DB 配置
+スキーマ・config.yml・サブコマンド一覧は `.claude/rules/impl-reference.md`（`cmd/**` 編集時に自動ロード）。
 
-```
-<CLAUDE_PROJECT_DIR>/
-└── .instinct-db/
-    ├── data/       # Dolt DB本体（gitignore対象）
-    └── config.yml  # プロジェクト固有設定（git管理）
-```
-
-ブランチ戦略: 個人ブランチ（自動蓄積）→ main（キュレーション済み）でチーム共有。詳細: ADR-0004。
-
-スキーマ・config.yml 構造・サブコマンド一覧は `.claude/rules/impl-reference.md`（`cmd/**` 編集時に自動ロード）。
-
----
-
-## Phase 1 スコープ（現在）
+## Phase 1（現在進行中）
 
 - [x] 設計・ADR 作成
-- [ ] observe.sh / observer-loop.sh のセットアップ（ECC 流用）
+- [ ] observe.sh / observer-loop.sh セットアップ（ECC 流用）
 - [ ] instinct-cli 実装（Go + dolthub/driver）
 - [ ] hooks.json / plugin.json 作成
 - [ ] oncall-platform への適用・動作確認
-
-## Phase 2 以降（未着手）
-
-- SessionStart フックによる instinct 注入
-- 自動品質チェック
-- dedup の ML モデル化（dedup_decisions の訓練データ活用）
-- instinct-cli pull の自動化
