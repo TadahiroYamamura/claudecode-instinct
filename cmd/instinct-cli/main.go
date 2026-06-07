@@ -32,6 +32,10 @@ func run(args []string, conn *sql.Conn, projectIDFn func(string) (string, error)
 	}
 }
 
+func instinctDataDir(projectDir string) string {
+	return filepath.Join(projectDir, ".instinct-db", "data")
+}
+
 func findProjectDir() (string, error) {
 	dir, err := os.Getwd()
 	if err != nil {
@@ -56,7 +60,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	dataDir := filepath.Join(projectDir, ".instinct-db", "data")
+	dataDir := instinctDataDir(projectDir)
 	ctx := context.Background()
 	conn, cleanup, err := openConn(ctx, dataDir)
 	if err != nil {
