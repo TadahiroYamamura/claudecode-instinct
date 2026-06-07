@@ -79,6 +79,34 @@ SH
   grep -q "コマンド実行前に計画を立てる" "$TMPDIR/instinct_cli_calls"
 }
 
+@test "claude is called with a structured prompt requesting JSON array output" {
+  local fake_bin="$TMPDIR/bin"
+  mkdir -p "$fake_bin"
+  cat > "$fake_bin/claude" <<SH
+#!/bin/bash
+# Record the full prompt passed via --print
+for arg in "\$@"; do
+  echo "\$arg" >> "$TMPDIR/claude_prompt"
+done
+echo '[]'
+SH
+  chmod +x "$fake_bin/claude"
+
+  echo '{"event":"tool_complete","tool":"Bash"}' > "$TMPDIR/observations.jsonl"
+
+  PATH="$fake_bin:$PATH" bash "$OBSERVER_SH" "$TMPDIR" &
+  local pid=$!
+  sleep 0.2
+
+  kill -USR1 "$pid"
+  sleep 0.3
+
+  kill "$pid" 2>/dev/null || true
+  grep -qi "json" "$TMPDIR/claude_prompt"
+  grep -qi "content" "$TMPDIR/claude_prompt"
+  grep -qi "trigger" "$TMPDIR/claude_prompt"
+}
+
 @test "observations.jsonl is archived after claude processing" {
   local fake_bin="$TMPDIR/bin"
   mkdir -p "$fake_bin"

@@ -8,8 +8,28 @@ _handle_usr1() {
   local obs_file="${PROJECT_DIR}/observations.jsonl"
   [ -f "$obs_file" ] || return 0
 
+  local prompt
+  prompt="$(cat <<PROMPT
+以下のツール使用観察ログを分析し、将来の作業に役立つ知見（instinct）をJSON配列で返してください。
+
+出力はJSON配列のみ（説明文なし）:
+[
+  {
+    "content": "具体的な行動指針",
+    "trigger_desc": "この知見を適用すべき状況",
+    "domain": "分野（workflow/code/testing/git など）"
+  }
+]
+
+知見がない場合は [] を返してください。
+
+## 観察ログ
+$(cat "$obs_file")
+PROMPT
+)"
+
   local claude_output
-  claude_output=$(claude --model haiku --print "$(cat "$obs_file")" 2>/dev/null) || return 0
+  claude_output=$(claude --model "${INSTINCT_CLAUDE_MODEL:-haiku}" --print "$prompt" 2>/dev/null) || return 0
 
   echo "$claude_output" | python3 -c "
 import json, sys, subprocess, os
