@@ -1,15 +1,19 @@
-# Phase 2 — 品質・共有の強化
+# Phase 2 — instinct-cli サブコマンド実装
 
 ## スコープ
 
-Phase 1 で蓄積されたデータを活用し、instinct の品質向上とチーム共有を自動化する。
+Phase 1 で insert のみ実装した instinct-cli に残りのサブコマンドを追加し、
+日常的な instinct の確認・整理・共有ができる状態にする。
 
 ## タスク
 
-- [ ] SessionStart フックによる instinct 注入（セッション開始時にコンテキストへ展開）
-- [ ] 自動品質チェック（生成 instinct のスコアリング・フィルタリング）
-- [ ] dedup の ML モデル化（dedup_decisions を訓練データとして活用）
-- [ ] instinct-cli pull の自動化（SessionStart 時に最新チーム instinct を取得）
+- [ ] `instinct-cli list` — 一覧表示
+- [ ] `instinct-cli list --merged` — 個人 + チームの統合一覧（重複排除）
+- [ ] `instinct-cli dedup` — Haiku によるブランチ内 dedup
+- [ ] `instinct-cli dedup --cross-branch` — 複数個人ブランチ横断 dedup
+- [ ] `instinct-cli review` — main にない新規 instinct 一覧（レビュー待ちキュー）
+- [ ] `instinct-cli push` — `CALL dolt_push()` でチームリポジトリへ送信
+- [ ] `instinct-cli pull` — `CALL dolt_pull()` でチームリポジトリから取得
 
 ## 前提
 
