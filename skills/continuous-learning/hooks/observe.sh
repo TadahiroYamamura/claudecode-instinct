@@ -25,6 +25,16 @@ fi
 [ -z "${CLAUDE_PROJECT_DIR:-}" ] && exit 0
 
 OBSERVATIONS_FILE="${CLAUDE_PROJECT_DIR}/observations.jsonl"
+MAX_FILE_SIZE_MB=10
+
+if [ -f "$OBSERVATIONS_FILE" ]; then
+  file_size_mb=$(du -m "$OBSERVATIONS_FILE" 2>/dev/null | cut -f1)
+  if [ "${file_size_mb:-0}" -ge "$MAX_FILE_SIZE_MB" ]; then
+    archive_dir="${CLAUDE_PROJECT_DIR}/observations.archive"
+    mkdir -p "$archive_dir"
+    mv "$OBSERVATIONS_FILE" "$archive_dir/observations-$(date +%Y%m%d-%H%M%S)-$$.jsonl" 2>/dev/null || true
+  fi
+fi
 timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 if [ "$HOOK_PHASE" = "pre" ]; then event="tool_start"; else event="tool_complete"; fi
 

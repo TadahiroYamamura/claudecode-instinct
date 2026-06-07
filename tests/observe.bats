@@ -99,6 +99,20 @@ print(len(d.get('input', '')))
   grep -q "REDACTED" "$TMPDIR/observations.jsonl"
 }
 
+@test "archives observations.jsonl when it exceeds 10MB" {
+  # Create a fake oversized observations file
+  dd if=/dev/zero bs=1M count=11 2>/dev/null | tr '\0' 'x' > "$TMPDIR/observations.jsonl"
+
+  local input='{"tool_name":"Bash","session_id":"sess-1","cwd":"/tmp"}'
+  echo "$input" | bash "$OBSERVE_SH" post
+
+  # Original file should be archived (new file starts fresh)
+  local line_count
+  line_count=$(wc -l < "$TMPDIR/observations.jsonl")
+  [ "$line_count" -eq 1 ]
+  ls "$TMPDIR/observations.archive/" | grep -q "observations-"
+}
+
 @test "valid PostToolUse JSON writes one observation to observations.jsonl" {
   local input='{"tool_name":"Bash","tool_input":{"command":"ls"},"tool_response":"file.txt","session_id":"sess-1","cwd":"/tmp"}'
 
