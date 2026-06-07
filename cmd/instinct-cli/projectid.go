@@ -33,7 +33,9 @@ func resolveProjectID(dir string) (string, error) {
 }
 
 func gitOutput(dir string, args ...string) (string, error) {
-	out, err := exec.Command("git", args...).Output()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	out, err := cmd.Output()
 	if err != nil {
 		return "", err
 	}
