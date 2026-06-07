@@ -26,7 +26,7 @@ func run(args []string, conn *sql.Conn, projectIDFn func(string) (string, error)
 	}
 	switch kctx.Command() {
 	case "insert":
-		return runInsert(context.Background(), conn, args[1:], projectIDFn)
+		return execInsert(context.Background(), conn, cli.Insert, projectIDFn)
 	default:
 		return fmt.Errorf("unknown command: %s", kctx.Command())
 	}
