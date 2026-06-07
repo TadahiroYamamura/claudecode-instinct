@@ -33,6 +33,22 @@ teardown() {
   grep -q '"session": "sess-abc"' "$TMPDIR/observations.jsonl"
 }
 
+@test "detects project dir from cwd git root when CLAUDE_PROJECT_DIR is unset" {
+  local git_repo
+  git_repo="$(mktemp -d)"
+  git -C "$git_repo" init -q
+  local subdir="$git_repo/src"
+  mkdir -p "$subdir"
+
+  local input="{\"tool_name\":\"Bash\",\"session_id\":\"sess-1\",\"cwd\":\"$subdir\"}"
+
+  unset CLAUDE_PROJECT_DIR
+  echo "$input" | bash "$OBSERVE_SH" post
+
+  [ -f "$git_repo/observations.jsonl" ]
+  rm -rf "$git_repo"
+}
+
 @test "valid PostToolUse JSON writes one observation to observations.jsonl" {
   local input='{"tool_name":"Bash","tool_input":{"command":"ls"},"tool_response":"file.txt","session_id":"sess-1","cwd":"/tmp"}'
 

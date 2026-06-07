@@ -6,6 +6,14 @@ INPUT_JSON=$(cat)
 
 [ -z "$INPUT_JSON" ] && exit 0
 
+if [ -z "${CLAUDE_PROJECT_DIR:-}" ]; then
+  _cwd=$(echo "$INPUT_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('cwd',''))" 2>/dev/null || true)
+  if [ -n "$_cwd" ]; then
+    CLAUDE_PROJECT_DIR=$(git -C "$_cwd" rev-parse --show-toplevel 2>/dev/null || true)
+  fi
+fi
+[ -z "${CLAUDE_PROJECT_DIR:-}" ] && exit 0
+
 OBSERVATIONS_FILE="${CLAUDE_PROJECT_DIR}/observations.jsonl"
 timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 if [ "$HOOK_PHASE" = "pre" ]; then event="tool_start"; else event="tool_complete"; fi
