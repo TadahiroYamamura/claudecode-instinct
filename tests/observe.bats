@@ -33,6 +33,14 @@ teardown() {
   grep -q '"session": "sess-abc"' "$TMPDIR/observations.jsonl"
 }
 
+@test "skips observation when agent_id is present (subagent session)" {
+  local input='{"tool_name":"Bash","session_id":"sess-1","agent_id":"agent-123","cwd":"/tmp"}'
+
+  echo "$input" | bash "$OBSERVE_SH" post
+
+  [ ! -f "$TMPDIR/observations.jsonl" ]
+}
+
 @test "detects project dir from cwd git root when CLAUDE_PROJECT_DIR is unset" {
   local git_repo
   git_repo="$(mktemp -d)"

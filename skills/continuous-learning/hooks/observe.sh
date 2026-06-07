@@ -6,6 +6,9 @@ INPUT_JSON=$(cat)
 
 [ -z "$INPUT_JSON" ] && exit 0
 
+_agent_id=$(echo "$INPUT_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('agent_id',''))" 2>/dev/null || true)
+[ -n "$_agent_id" ] && exit 0
+
 if [ -z "${CLAUDE_PROJECT_DIR:-}" ]; then
   _cwd=$(echo "$INPUT_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('cwd',''))" 2>/dev/null || true)
   if [ -n "$_cwd" ]; then
