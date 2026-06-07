@@ -11,6 +11,7 @@
 - [x] observer-loop.sh セットアップ（ECC 流用・JSON出力→instinct-cli連携）
 - [x] instinct-cli 実装（Go + dolthub/driver）
 - [x] hooks.json / plugin.json 作成
+- [x] SessionStart フックで observer-loop.sh を自動起動（start-observer.sh）
 - [ ] oncall-platform への適用・動作確認
 
 ## 完了条件
