@@ -11,6 +11,10 @@ import (
 
 const dbName = "instincts"
 
+func doltDSN(dataDir string) string {
+	return "file://" + dataDir + "?commitname=instinct-cli&commitemail=instinct@local"
+}
+
 const createInstinctsTable = `CREATE TABLE instincts (
 	id                VARCHAR(64)   PRIMARY KEY,
 	content           TEXT          NOT NULL,
@@ -28,7 +32,7 @@ const createInstinctsTable = `CREATE TABLE instincts (
 // openConn returns a single Dolt connection pinned to the instincts database.
 // The caller must call the returned cleanup func when done.
 func openConn(ctx context.Context, dataDir string) (*sql.Conn, func(), error) {
-	db, err := sql.Open("dolt", "file://"+dataDir+"?commitname=instinct-cli&commitemail=instinct@local")
+	db, err := sql.Open("dolt", doltDSN(dataDir))
 	if err != nil {
 		return nil, nil, fmt.Errorf("open dolt: %w", err)
 	}
@@ -57,7 +61,7 @@ func setupDB(ctx context.Context, dataDir string) error {
 		return fmt.Errorf("mkdir: %w", err)
 	}
 
-	db, err := sql.Open("dolt", "file://"+dataDir+"?commitname=instinct-cli&commitemail=instinct@local")
+	db, err := sql.Open("dolt", doltDSN(dataDir))
 	if err != nil {
 		return fmt.Errorf("open dolt: %w", err)
 	}
