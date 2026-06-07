@@ -116,8 +116,7 @@ claude
 現時点では `instinct-cli list` が未実装（Phase 2 予定）のため、Dolt CLI で直接確認する。
 
 ```bash
-cd .instinct-db/data
-dolt sql -q "SELECT content, trigger_desc, scope FROM instincts ORDER BY created_at DESC LIMIT 10"
+dolt --data-dir=.instinct-db/data sql -q "SELECT content, trigger_desc, scope FROM instincts ORDER BY created_at DESC LIMIT 10"
 ```
 
 Dolt CLI がなければ MySQL クライアント（mysql コマンド）でも接続できる。
