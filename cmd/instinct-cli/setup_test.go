@@ -21,6 +21,26 @@ func TestSetup_CreatesDoltDBDirectory(t *testing.T) {
 	}
 }
 
+// setup実行後に.instinct-db/.gitignoreが作成され、ランタイムファイルが除外される
+func TestSetup_CreatesGitignoreInInstinctDb(t *testing.T) {
+	dir := t.TempDir()
+
+	if err := runSetup(dir); err != nil {
+		t.Fatalf("runSetup: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, ".instinct-db", ".gitignore"))
+	if err != nil {
+		t.Fatalf(".instinct-db/.gitignore not created: %v", err)
+	}
+	content := string(data)
+	for _, entry := range []string{"data/", "observations.jsonl", ".observer.pid"} {
+		if !strings.Contains(content, entry) {
+			t.Errorf(".gitignore missing %q, got:\n%s", entry, content)
+		}
+	}
+}
+
 // config.ymlのrefsがディレクトリ名から自動推定される
 func TestSetup_ConfigYmlContainsRefsBasedOnDirName(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "myproject")
