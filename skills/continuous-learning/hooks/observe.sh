@@ -8,7 +8,7 @@ INPUT_JSON=$(cat)
 
 OBSERVATIONS_FILE="${CLAUDE_PROJECT_DIR}/observations.jsonl"
 timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-[ "$HOOK_PHASE" = "pre" ] && event="tool_start" || event="tool_complete"
+if [ "$HOOK_PHASE" = "pre" ]; then event="tool_start"; else event="tool_complete"; fi
 
 echo "$INPUT_JSON" | TIMESTAMP="$timestamp" EVENT="$event" python3 -c '
 import json, sys, os
