@@ -73,6 +73,23 @@ teardown() {
   rm -rf "$git_repo"
 }
 
+@test "PreToolUse includes tool_input in observation and truncates at 5000 chars" {
+  local long_val
+  long_val=$(python3 -c "print('x' * 6000)")
+  local input="{\"tool_name\":\"Write\",\"tool_input\":{\"content\":\"$long_val\"},\"session_id\":\"sess-1\",\"cwd\":\"/tmp\"}"
+
+  echo "$input" | bash "$OBSERVE_SH" pre
+
+  local input_len
+  input_len=$(python3 -c "
+import json
+d = json.loads(open('$TMPDIR/observations.jsonl').read())
+print(len(d.get('input', '')))
+")
+  [ "$input_len" -gt 0 ]
+  [ "$input_len" -le 5000 ]
+}
+
 @test "valid PostToolUse JSON writes one observation to observations.jsonl" {
   local input='{"tool_name":"Bash","tool_input":{"command":"ls"},"tool_response":"file.txt","session_id":"sess-1","cwd":"/tmp"}'
 

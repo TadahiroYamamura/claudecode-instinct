@@ -30,11 +30,24 @@ if [ "$HOOK_PHASE" = "pre" ]; then event="tool_start"; else event="tool_complete
 
 echo "$INPUT_JSON" | TIMESTAMP="$timestamp" EVENT="$event" python3 -c '
 import json, sys, os
+
+TRUNCATE = 5000
 data = json.load(sys.stdin)
-print(json.dumps({
+event = os.environ["EVENT"]
+
+obs = {
     "timestamp": os.environ["TIMESTAMP"],
-    "event": os.environ["EVENT"],
+    "event": event,
     "tool": data.get("tool_name", "unknown"),
     "session": data.get("session_id", "unknown"),
-}))
+}
+
+if event == "tool_start":
+    raw = data.get("tool_input", {})
+    obs["input"] = (json.dumps(raw) if isinstance(raw, dict) else str(raw))[:TRUNCATE]
+else:
+    raw = data.get("tool_response", data.get("tool_output", ""))
+    obs["output"] = (json.dumps(raw) if isinstance(raw, dict) else str(raw or ""))[:TRUNCATE]
+
+print(json.dumps(obs))
 ' >> "$OBSERVATIONS_FILE"
