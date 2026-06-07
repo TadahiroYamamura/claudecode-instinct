@@ -8,7 +8,7 @@
 
 - [x] 設計・ADR 作成
 - [x] observe.sh セットアップ（Linux専用・TDD実装）
-- [ ] observer-loop.sh セットアップ（ECC 流用・JSON出力→instinct-cli連携）
+- [x] observer-loop.sh セットアップ（ECC 流用・JSON出力→instinct-cli連携）
 - [ ] instinct-cli 実装（Go + dolthub/driver）
 - [ ] hooks.json / plugin.json 作成
 - [ ] oncall-platform への適用・動作確認
