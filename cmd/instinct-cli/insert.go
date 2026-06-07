@@ -23,7 +23,7 @@ type insertFlags struct {
 	Content string `kong:"required,name='content',help='instinct content'"`
 	Trigger string `kong:"name='trigger',help='trigger description'"`
 	Domain  string `kong:"name='domain',help='domain'"`
-	Count   int    `kong:"name='count',help='observation count'"`
+	Count   int    `kong:"required,name='count',help='observation count'"`
 	Scope   string `kong:"name='scope',default='project',help='scope (project|global)'"`
 }
 

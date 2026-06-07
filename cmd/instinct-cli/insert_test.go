@@ -59,6 +59,19 @@ func TestRunInsert_StoresRecordFromFlags(t *testing.T) {
 	}
 }
 
+func TestRunInsert_CountIsRequired(t *testing.T) {
+	ctx, conn := setupTestDB(t)
+
+	err := runInsert(ctx, conn, []string{
+		"--content", "何か知見",
+		"--trigger", "何かのとき",
+	}, func(string) (string, error) { return "abc123def456", nil })
+
+	if err == nil {
+		t.Fatal("expected error when --count is omitted")
+	}
+}
+
 func TestInsert_SameContentTwiceCreatesTwoRecords(t *testing.T) {
 	ctx, conn := setupTestDB(t)
 
