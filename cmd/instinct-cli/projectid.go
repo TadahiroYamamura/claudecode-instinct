@@ -28,7 +28,8 @@ func resolveProjectID(dir string) (string, error) {
 		return "", err
 	}
 
-	hash := sha256.Sum256([]byte(remoteURL + "#" + relPath))
+	hashInput := remoteURL + "#" + relPath
+	hash := sha256.Sum256([]byte(hashInput))
 	return fmt.Sprintf("%x", hash[:6]), nil
 }
 
