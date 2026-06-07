@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -17,23 +16,6 @@ type cliStruct struct {
 	Insert insertFlags `cmd:"" help:"Insert an instinct"`
 }
 
-func run(args []string, conn *sql.Conn, projectIDFn func(string) (string, error)) error {
-	var cli cliStruct
-	p, err := kong.New(&cli)
-	if err != nil {
-		return err
-	}
-	kctx, err := p.Parse(args)
-	if err != nil {
-		return err
-	}
-	switch kctx.Command() {
-	case "insert":
-		return execInsert(context.Background(), conn, cli.Insert, projectIDFn)
-	default:
-		return fmt.Errorf("unknown command: %s", kctx.Command())
-	}
-}
 
 func instinctDbDir(projectDir string) string {
 	return filepath.Join(projectDir, ".instinct-db")

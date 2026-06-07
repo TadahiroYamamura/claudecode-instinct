@@ -34,19 +34,19 @@ func TestCLI_SetupCommand_CreatesInstinctDb(t *testing.T) {
 	}
 }
 
-// run(["insert", ...])がDBにレコードを保存する
+// execInsert(insertFlags)がDBにレコードを保存する
 func TestCLI_InsertCommand_StoresRecord(t *testing.T) {
 	ctx, conn := setupTestDB(t)
 
-	err := run([]string{
-		"insert",
-		"--content", "テスト前に仕様を確認する",
-		"--trigger", "テスト実行時",
-		"--domain", "testing",
-		"--count", "2",
-	}, conn, func(string) (string, error) { return "abc123def456", nil })
+	err := execInsert(ctx, conn, insertFlags{
+		Content: "テスト前に仕様を確認する",
+		Trigger: "テスト実行時",
+		Domain:  "testing",
+		Count:   2,
+		Scope:   "project",
+	}, func(string) (string, error) { return "abc123def456", nil })
 	if err != nil {
-		t.Fatalf("run: %v", err)
+		t.Fatalf("execInsert: %v", err)
 	}
 
 	var count int
