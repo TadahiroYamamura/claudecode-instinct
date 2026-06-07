@@ -33,6 +33,14 @@ teardown() {
   grep -q '"session": "sess-abc"' "$TMPDIR/observations.jsonl"
 }
 
+@test "skips observation when INSTINCT_SKIP_OBSERVE is set to 1" {
+  local input='{"tool_name":"Bash","session_id":"sess-1","cwd":"/tmp"}'
+
+  echo "$input" | INSTINCT_SKIP_OBSERVE=1 bash "$OBSERVE_SH" post
+
+  [ ! -f "$TMPDIR/observations.jsonl" ]
+}
+
 @test "skips observation when CLAUDE_CODE_ENTRYPOINT is not an interactive entrypoint" {
   local input='{"tool_name":"Bash","session_id":"sess-1","cwd":"/tmp"}'
 

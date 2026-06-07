@@ -6,6 +6,8 @@ INPUT_JSON=$(cat)
 
 [ -z "$INPUT_JSON" ] && exit 0
 
+[ "${INSTINCT_SKIP_OBSERVE:-0}" = "1" ] && exit 0
+
 case "${CLAUDE_CODE_ENTRYPOINT:-cli}" in
   cli|sdk-ts|claude-desktop) ;;
   *) exit 0 ;;
