@@ -1,0 +1,27 @@
+{
+  "description": "Observe PreToolUse/PostToolUse events and write to observations.jsonl for instinct generation",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/skills/continuous-learning/hooks/observe.sh\" pre",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/skills/continuous-learning/hooks/observe.sh\" post",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

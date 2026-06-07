@@ -1,0 +1,8 @@
+{
+  "name": "claudecode-instinct",
+  "description": "Observe Claude Code tool usage and accumulate reusable work insights (instincts) into Dolt",
+  "author": {
+    "name": "Tadahiro Yamamura",
+    "email": "mt.village12@gmail.com"
+  }
+}
