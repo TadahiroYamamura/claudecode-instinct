@@ -45,8 +45,22 @@ instinct-cli --help
 
 ## 2. プラグインのインストール
 
+### GitHub からインストール（公開後）
+
+リポジトリをマーケットプレイスとして登録してからインストールする。
+
 ```bash
-claude plugin install TadahiroYamamura/claudecode-instinct
+claude plugin marketplace add TadahiroYamamura/claudecode-instinct
+claude plugin install claudecode-instinct@TadahiroYamamura
+```
+
+### ローカルパスからインストール（開発中・手元で試す場合）
+
+クローンしたディレクトリをマーケットプレイスとして登録する。
+
+```bash
+claude plugin marketplace add /path/to/claudecode-instinct
+claude plugin install claudecode-instinct@claudecode-instinct
 ```
 
 ---
