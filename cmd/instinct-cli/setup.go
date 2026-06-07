@@ -2,10 +2,14 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
 )
+
+//go:embed templates/gitignore.tmpl
+var instinctDbGitignore []byte
 
 func runSetup(projectDir string) error {
 	if err := setupDB(context.Background(), instinctDataDir(projectDir)); err != nil {
@@ -20,7 +24,5 @@ func runSetup(projectDir string) error {
 		return err
 	}
 
-	gitignorePath := filepath.Join(dbDir, ".gitignore")
-	gitignoreContent := "data/\nobservations.jsonl\nobservations.archive/\n.observer.pid\n.observer-signal-counter\n"
-	return os.WriteFile(gitignorePath, []byte(gitignoreContent), 0o644)
+	return os.WriteFile(filepath.Join(dbDir, ".gitignore"), instinctDbGitignore, 0o644)
 }
