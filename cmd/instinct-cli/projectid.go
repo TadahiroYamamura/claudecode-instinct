@@ -37,6 +37,5 @@ func gitOutput(dir string, args ...string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	_ = dir
 	return strings.TrimSpace(string(out)), nil
 }
