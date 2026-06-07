@@ -10,7 +10,10 @@ import (
 	"github.com/alecthomas/kong"
 )
 
+type setupCmd struct{}
+
 type cliStruct struct {
+	Setup  setupCmd    `cmd:"" help:"Initialize .instinct-db in current directory"`
 	Insert insertFlags `cmd:"" help:"Insert an instinct"`
 }
 
@@ -55,21 +58,34 @@ func findProjectDirFrom(startDir string) (string, error) {
 }
 
 func dispatch(args []string, cwd string) error {
-	if len(args) > 0 && args[0] == "setup" {
+	var cli cliStruct
+	p, err := kong.New(&cli)
+	if err != nil {
+		return err
+	}
+	kctx, err := p.Parse(args)
+	if err != nil {
+		return err
+	}
+	switch kctx.Command() {
+	case "setup":
 		return runSetup(cwd)
+	case "insert":
+		projectDir, err := findProjectDirFrom(cwd)
+		if err != nil {
+			return err
+		}
+		conn, cleanup, err := openConn(context.Background(), instinctDataDir(projectDir))
+		if err != nil {
+			return err
+		}
+		defer cleanup()
+		return execInsert(context.Background(), conn, cli.Insert, func(_ string) (string, error) {
+			return resolveProjectID(projectDir)
+		})
+	default:
+		return fmt.Errorf("unknown command: %s", kctx.Command())
 	}
-	projectDir, err := findProjectDirFrom(cwd)
-	if err != nil {
-		return err
-	}
-	conn, cleanup, err := openConn(context.Background(), instinctDataDir(projectDir))
-	if err != nil {
-		return err
-	}
-	defer cleanup()
-	return run(args, conn, func(_ string) (string, error) {
-		return resolveProjectID(projectDir)
-	})
 }
 
 func main() {

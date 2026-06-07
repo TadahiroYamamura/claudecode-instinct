@@ -3,8 +3,23 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+// サブコマンドなしのとき.instinct-db探索エラーではなく使用法エラーを返す
+func TestDispatch_NoArgs_ReturnsUsageErrorNotProjectDirError(t *testing.T) {
+	dir := t.TempDir() // .instinct-dbが存在しないディレクトリ
+
+	err := dispatch([]string{}, dir)
+
+	if err == nil {
+		t.Fatal("expected error for no args")
+	}
+	if strings.Contains(err.Error(), ".instinct-db") {
+		t.Errorf("should not search for .instinct-db when no subcommand given, got: %v", err)
+	}
+}
 
 // dispatch(["setup"], dir)が.instinct-db/data/を作成する
 func TestCLI_SetupCommand_CreatesInstinctDb(t *testing.T) {
