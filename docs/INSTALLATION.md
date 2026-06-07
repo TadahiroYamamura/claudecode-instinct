@@ -90,30 +90,9 @@ dolt:
 
 ---
 
-## 4. observer-loop の起動
+## 4. 動作確認
 
-Claude Code を使い始める前に、バックグラウンドで observer-loop を起動する。
-
-```bash
-PLUGIN_ROOT="$(claude plugin path TadahiroYamamura/claudecode-instinct)"
-PROJECT_ROOT="$(pwd)"   # .instinct-db があるディレクトリ
-
-nohup bash "${PLUGIN_ROOT}/skills/continuous-learning/agents/observer-loop.sh" \
-  "${PROJECT_ROOT}" \
-  > "${PROJECT_ROOT}/.observer.log" 2>&1 &
-
-echo "observer PID: $!"
-```
-
-停止するには `.observer.pid` に記録された PID を kill する。
-
-```bash
-kill "$(cat "${PROJECT_ROOT}/.observer.pid")"
-```
-
----
-
-## 5. 動作確認
+observer-loop は Claude Code セッション開始時に自動起動する（SessionStart フック）。
 
 Claude Code を通常通り起動して作業する。
 
