@@ -4,9 +4,9 @@ INPUT_JSON=$(cat)
 _cwd=$(echo "$INPUT_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('cwd',''))" 2>/dev/null || true)
 [ -z "$_cwd" ] && exit 0
 
-PROJECT_DIR=$(python3 -c "
+PROJECT_DIR=$(CWD_PATH="$_cwd" python3 -c "
 import os
-path = os.path.abspath('$_cwd')
+path = os.path.abspath(os.environ['CWD_PATH'])
 while True:
     if os.path.isdir(os.path.join(path, '.instinct-db')):
         print(path); break
