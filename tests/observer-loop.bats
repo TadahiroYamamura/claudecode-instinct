@@ -4,19 +4,23 @@ setup() {
   TMPDIR="$(mktemp -d)"
   mkdir -p "$TMPDIR/.instinct-db"
   OBSERVER_SH="$BATS_TEST_DIRNAME/../skills/continuous-learning/agents/observer-loop.sh"
-  export CLAUDE_PROJECT_DIR="$TMPDIR"
 }
 
 teardown() {
-  # Kill any observer process still running in this test's project dir
   if [ -f "$TMPDIR/.observer.pid" ]; then
     kill "$(cat "$TMPDIR/.observer.pid")" 2>/dev/null || true
   fi
   rm -rf "$TMPDIR"
 }
 
+@test "exits with error when project directory argument is missing" {
+  local exit_code=0
+  bash "$OBSERVER_SH" 2>/dev/null || exit_code=$?
+  [ "$exit_code" -ne 0 ]
+}
+
 @test "writes own PID to .observer.pid on startup" {
-  bash "$OBSERVER_SH" &
+  bash "$OBSERVER_SH" "$TMPDIR" &
   local launched_pid=$!
   sleep 0.2
 
@@ -27,16 +31,16 @@ teardown() {
 @test "SIGUSR1 triggers claude with observations as prompt" {
   local fake_bin="$TMPDIR/bin"
   mkdir -p "$fake_bin"
-  cat > "$fake_bin/claude" <<'SH'
+  cat > "$fake_bin/claude" <<SH
 #!/bin/bash
 echo '[]'
-touch "${CLAUDE_PROJECT_DIR}/claude_called"
+touch "$TMPDIR/claude_called"
 SH
   chmod +x "$fake_bin/claude"
 
   echo '{"event":"tool_complete","tool":"Bash"}' > "$TMPDIR/observations.jsonl"
 
-  PATH="$fake_bin:$PATH" bash "$OBSERVER_SH" &
+  PATH="$fake_bin:$PATH" bash "$OBSERVER_SH" "$TMPDIR" &
   local pid=$!
   sleep 0.2
 
@@ -55,15 +59,15 @@ SH
 echo '[{"content":"コマンド実行前に計画を立てる","trigger_desc":"Bash tool 使用時","domain":"workflow"}]'
 SH
   chmod +x "$fake_bin/claude"
-  cat > "$fake_bin/instinct-cli" <<'SH'
+  cat > "$fake_bin/instinct-cli" <<SH
 #!/bin/bash
-echo "$@" >> "${CLAUDE_PROJECT_DIR}/instinct_cli_calls"
+echo "\$@" >> "$TMPDIR/instinct_cli_calls"
 SH
   chmod +x "$fake_bin/instinct-cli"
 
   echo '{"event":"tool_complete","tool":"Bash"}' > "$TMPDIR/observations.jsonl"
 
-  PATH="$fake_bin:$PATH" bash "$OBSERVER_SH" &
+  PATH="$fake_bin:$PATH" bash "$OBSERVER_SH" "$TMPDIR" &
   local pid=$!
   sleep 0.2
 
@@ -86,7 +90,7 @@ SH
 
   echo '{"event":"tool_complete","tool":"Bash"}' > "$TMPDIR/observations.jsonl"
 
-  PATH="$fake_bin:$PATH" bash "$OBSERVER_SH" &
+  PATH="$fake_bin:$PATH" bash "$OBSERVER_SH" "$TMPDIR" &
   local pid=$!
   sleep 0.2
 

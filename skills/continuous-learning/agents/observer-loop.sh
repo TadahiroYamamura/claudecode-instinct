@@ -1,9 +1,11 @@
 #!/bin/bash
 
-echo $$ > "${CLAUDE_PROJECT_DIR}/.observer.pid"
+PROJECT_DIR="${1:?project directory required}"
+
+echo $$ > "${PROJECT_DIR}/.observer.pid"
 
 _handle_usr1() {
-  local obs_file="${CLAUDE_PROJECT_DIR}/observations.jsonl"
+  local obs_file="${PROJECT_DIR}/observations.jsonl"
   [ -f "$obs_file" ] || return 0
 
   local claude_output
@@ -34,7 +36,7 @@ for item in data:
     )
 " 2>/dev/null || true
 
-  local archive_dir="${CLAUDE_PROJECT_DIR}/observations.archive"
+  local archive_dir="${PROJECT_DIR}/observations.archive"
   mkdir -p "$archive_dir"
   mv "$obs_file" "$archive_dir/observations-$(date +%Y%m%d-%H%M%S)-$$.jsonl" 2>/dev/null || true
 }
