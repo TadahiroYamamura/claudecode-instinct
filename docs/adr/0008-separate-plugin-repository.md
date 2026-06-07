@@ -21,11 +21,13 @@ Accepted
 Dolt DB のローカル配置:
 
 ```
-$CLAUDE_PROJECT_DIR/
+<project_root>/          # .instinct-db が存在するディレクトリ
 └── .instinct-db/
     ├── data/       # Dolt DB 本体（gitignore）
     └── config.yml  # プロジェクト固有設定（git 管理）
 ```
+
+プロジェクトルートは`instinct-cli setup` によって `.instinct-db` ディレクトリが作成されたディレクトリとして確定する。observe.sh はフック実行時の `cwd` から上位を探索してプロジェクトルートを特定し、observer-loop.sh にはプロジェクトルートパスを起動引数として渡す。
 
 ## Consequences
 

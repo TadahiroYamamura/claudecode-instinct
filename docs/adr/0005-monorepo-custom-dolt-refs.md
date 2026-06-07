@@ -21,7 +21,7 @@ push 結果:
 - backend の instinct → `refs/dolt/backend/<branch>`
 - mobile の instinct → `refs/dolt/mobile/<branch>`
 
-この refs 値はプロジェクトルートの `.instinct-db/config.yml` に記載し、`instinct-cli setup` 実行時に `basename $CLAUDE_PROJECT_DIR` から自動推定する。
+この refs 値はプロジェクトルートの `.instinct-db/config.yml` に記載し、`instinct-cli setup` 実行時の cwd 名（`basename $(pwd)`）から自動推定する。`setup` はその cwd に `.instinct-db/` を作成するため、以降はこのディレクトリがプロジェクトルートとして機能する。
 
 ### プロジェクト ID の生成
 
