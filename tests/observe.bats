@@ -90,6 +90,15 @@ print(len(d.get('input', '')))
   [ "$input_len" -le 5000 ]
 }
 
+@test "redacts secret patterns in tool output" {
+  local input='{"tool_name":"Bash","tool_response":"api_key=supersecrettoken123","session_id":"sess-1","cwd":"/tmp"}'
+
+  echo "$input" | bash "$OBSERVE_SH" post
+
+  grep -v "supersecrettoken123" "$TMPDIR/observations.jsonl"
+  grep -q "REDACTED" "$TMPDIR/observations.jsonl"
+}
+
 @test "valid PostToolUse JSON writes one observation to observations.jsonl" {
   local input='{"tool_name":"Bash","tool_input":{"command":"ls"},"tool_response":"file.txt","session_id":"sess-1","cwd":"/tmp"}'
 

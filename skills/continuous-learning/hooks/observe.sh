@@ -29,9 +29,21 @@ timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 if [ "$HOOK_PHASE" = "pre" ]; then event="tool_start"; else event="tool_complete"; fi
 
 echo "$INPUT_JSON" | TIMESTAMP="$timestamp" EVENT="$event" python3 -c '
-import json, sys, os
+import json, sys, os, re
 
 TRUNCATE = 5000
+_SECRET_RE = re.compile(
+    r"(?i)(api[_-]?key|token|secret|password|authorization|credentials?|auth)"
+    r"([\"'"'"'\s:=]+)"
+    r"([A-Za-z]+\s+)?"
+    r"([A-Za-z0-9_\-/.+=]{8,})"
+)
+
+def scrub(val):
+    if val is None:
+        return None
+    return _SECRET_RE.sub(lambda m: m.group(1) + m.group(2) + (m.group(3) or "") + "[REDACTED]", str(val))
+
 data = json.load(sys.stdin)
 event = os.environ["EVENT"]
 
@@ -44,10 +56,10 @@ obs = {
 
 if event == "tool_start":
     raw = data.get("tool_input", {})
-    obs["input"] = (json.dumps(raw) if isinstance(raw, dict) else str(raw))[:TRUNCATE]
+    obs["input"] = scrub((json.dumps(raw) if isinstance(raw, dict) else str(raw))[:TRUNCATE])
 else:
     raw = data.get("tool_response", data.get("tool_output", ""))
-    obs["output"] = (json.dumps(raw) if isinstance(raw, dict) else str(raw or ""))[:TRUNCATE]
+    obs["output"] = scrub((json.dumps(raw) if isinstance(raw, dict) else str(raw or ""))[:TRUNCATE])
 
 print(json.dumps(obs))
 ' >> "$OBSERVATIONS_FILE"
