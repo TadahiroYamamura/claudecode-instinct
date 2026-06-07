@@ -24,6 +24,42 @@ func setupTestDB(t *testing.T) (context.Context, *sql.Conn) {
 	return ctx, conn
 }
 
+// 同一内容を2回insertすると2レコードになる（dedup前）
+// observation_countの合算はdedup時に行われる
+func TestInsert_SameContentTwiceCreatesTwoRecords(t *testing.T) {
+	ctx, conn := setupTestDB(t)
+
+	params := InsertParams{
+		Content:          "git push前にテストを実行する",
+		TriggerDesc:      "git push時",
+		Domain:           "git",
+		Scope:            "global",
+		ObservationCount: 2,
+		ProjectID:        "abc123def456",
+	}
+	if err := insertInstinct(ctx, conn, params); err != nil {
+		t.Fatalf("first insert: %v", err)
+	}
+	params.ObservationCount = 1
+	if err := insertInstinct(ctx, conn, params); err != nil {
+		t.Fatalf("second insert: %v", err)
+	}
+
+	var totalCount, totalObs int
+	err := conn.QueryRowContext(ctx,
+		"SELECT COUNT(*), SUM(observation_count) FROM instincts WHERE content = ?",
+		"git push前にテストを実行する").Scan(&totalCount, &totalObs)
+	if err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	if totalCount != 2 {
+		t.Errorf("expected 2 records before dedup, got %d", totalCount)
+	}
+	if totalObs != 3 {
+		t.Errorf("expected observation_count sum = 3, got %d", totalObs)
+	}
+}
+
 func TestInsert_StoresInstinct(t *testing.T) {
 	ctx, conn := setupTestDB(t)
 
