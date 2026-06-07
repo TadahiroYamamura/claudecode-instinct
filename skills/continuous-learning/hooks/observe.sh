@@ -73,3 +73,24 @@ else:
 
 print(json.dumps(obs))
 ' >> "$OBSERVATIONS_FILE"
+
+# Signal observer every N observations
+SIGNAL_EVERY_N="${INSTINCT_OBSERVER_SIGNAL_EVERY_N:-20}"
+SIGNAL_COUNTER_FILE="${CLAUDE_PROJECT_DIR}/.observer-signal-counter"
+counter=0
+if [ -f "$SIGNAL_COUNTER_FILE" ]; then
+  counter=$(cat "$SIGNAL_COUNTER_FILE" 2>/dev/null || echo 0)
+fi
+counter=$((counter + 1))
+if [ "$counter" -ge "$SIGNAL_EVERY_N" ]; then
+  counter=0
+  pid_file="${CLAUDE_PROJECT_DIR}/.observer.pid"
+  if [ -f "$pid_file" ]; then
+    observer_pid=$(cat "$pid_file" 2>/dev/null || true)
+    case "$observer_pid" in
+      ''|*[!0-9]*|0|1) rm -f "$pid_file" ;;
+      *) kill -USR1 "$observer_pid" 2>/dev/null || true ;;
+    esac
+  fi
+fi
+echo "$counter" > "$SIGNAL_COUNTER_FILE"

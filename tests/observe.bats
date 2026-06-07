@@ -113,6 +113,26 @@ print(len(d.get('input', '')))
   ls "$TMPDIR/observations.archive/" | grep -q "observations-"
 }
 
+@test "sends SIGUSR1 to observer after every N observations" {
+  # Start a background process that counts received SIGUSR1 signals
+  local signal_file="$TMPDIR/got_signal"
+  bash -c "trap 'touch $signal_file' USR1; while true; do sleep 10 & wait; done" &
+  local observer_pid=$!
+  echo "$observer_pid" > "$TMPDIR/.observer.pid"
+
+  local input='{"tool_name":"Bash","session_id":"sess-1","cwd":"/tmp"}'
+
+  # Send N=3 observations (use INSTINCT_OBSERVER_SIGNAL_EVERY_N=3 for test speed)
+  for i in $(seq 1 3); do
+    echo "$input" | INSTINCT_OBSERVER_SIGNAL_EVERY_N=3 bash "$OBSERVE_SH" post
+  done
+
+  sleep 0.2
+  kill "$observer_pid" 2>/dev/null || true
+
+  [ -f "$signal_file" ]
+}
+
 @test "valid PostToolUse JSON writes one observation to observations.jsonl" {
   local input='{"tool_name":"Bash","tool_input":{"command":"ls"},"tool_response":"file.txt","session_id":"sess-1","cwd":"/tmp"}'
 
