@@ -5,6 +5,14 @@ import (
 	"testing"
 )
 
+// git configに存在しないキーはエラーを返す
+func TestGitConfigValue_ReturnsErrorWhenKeyNotSet(t *testing.T) {
+	_, err := gitConfigValue("nonexistent.key.xyz")
+	if err == nil {
+		t.Error("expected error for missing git config key")
+	}
+}
+
 // doltDSNに渡したname/emailがDSNに含まれる
 func TestDoltDSN_IncludesCommitNameAndEmail(t *testing.T) {
 	dsn := doltDSN("/tmp/data", "Taro Yamada", "taro@example.com")

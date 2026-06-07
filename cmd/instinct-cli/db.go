@@ -15,18 +15,24 @@ func doltDSN(dataDir, commitName, commitEmail string) string {
 	return "file://" + dataDir + "?commitname=" + commitName + "&commitemail=" + commitEmail
 }
 
-func gitConfigValue(key, fallback string) string {
+func gitConfigValue(key string) (string, error) {
 	out, err := gitOutput("", "config", key)
 	if err != nil || out == "" {
-		return fallback
+		return "", fmt.Errorf("git config %s: not set (git initialized?)", key)
 	}
-	return out
+	return out, nil
 }
 
-func doltDSNWithGitIdentity(dataDir string) string {
-	return doltDSN(dataDir,
-		gitConfigValue("user.name", "instinct-cli"),
-		gitConfigValue("user.email", "instinct@local"))
+func doltDSNWithGitIdentity(dataDir string) (string, error) {
+	name, err := gitConfigValue("user.name")
+	if err != nil {
+		return "", err
+	}
+	email, err := gitConfigValue("user.email")
+	if err != nil {
+		return "", err
+	}
+	return doltDSN(dataDir, name, email), nil
 }
 
 const createInstinctsTable = `CREATE TABLE instincts (
@@ -46,7 +52,11 @@ const createInstinctsTable = `CREATE TABLE instincts (
 // openConn returns a single Dolt connection pinned to the instincts database.
 // The caller must call the returned cleanup func when done.
 func openConn(ctx context.Context, dataDir string) (*sql.Conn, func(), error) {
-	db, err := sql.Open("dolt", doltDSNWithGitIdentity(dataDir))
+	dsn, err := doltDSNWithGitIdentity(dataDir)
+	if err != nil {
+		return nil, nil, err
+	}
+	db, err := sql.Open("dolt", dsn)
 	if err != nil {
 		return nil, nil, fmt.Errorf("open dolt: %w", err)
 	}
@@ -75,7 +85,11 @@ func setupDB(ctx context.Context, dataDir string) error {
 		return fmt.Errorf("mkdir: %w", err)
 	}
 
-	db, err := sql.Open("dolt", doltDSNWithGitIdentity(dataDir))
+	dsn, err := doltDSNWithGitIdentity(dataDir)
+	if err != nil {
+		return err
+	}
+	db, err := sql.Open("dolt", dsn)
 	if err != nil {
 		return fmt.Errorf("open dolt: %w", err)
 	}
