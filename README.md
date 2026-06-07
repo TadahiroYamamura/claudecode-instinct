@@ -17,7 +17,10 @@ CI 環境では Claude Code を `--bare` フラグで起動することでプラ
 
 ## インストール
 
+詳細な手順は [docs/INSTALLATION.md](docs/INSTALLATION.md) を参照。
+
 ```bash
+# instinct-cli をビルドして PATH に配置した後
 claude plugin install TadahiroYamamura/claudecode-instinct
 ```
 
