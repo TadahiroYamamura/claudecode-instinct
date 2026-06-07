@@ -13,7 +13,7 @@ teardown() {
 @test "empty stdin writes nothing to observations.jsonl" {
   echo "" | bash "$OBSERVE_SH" post
 
-  [ ! -f "$TMPDIR/observations.jsonl" ]
+  [ ! -f "$TMPDIR/.instinct-db/observations.jsonl" ]
 }
 
 @test "PreToolUse hook records tool_start event" {
@@ -21,7 +21,7 @@ teardown() {
 
   echo "$input" | bash "$OBSERVE_SH" pre
 
-  grep -q '"event": "tool_start"' "$TMPDIR/observations.jsonl"
+  grep -q '"event": "tool_start"' "$TMPDIR/.instinct-db/observations.jsonl"
 }
 
 @test "observation JSON contains tool name and session_id" {
@@ -29,8 +29,8 @@ teardown() {
 
   echo "$input" | bash "$OBSERVE_SH" post
 
-  grep -q '"tool": "Read"' "$TMPDIR/observations.jsonl"
-  grep -q '"session": "sess-abc"' "$TMPDIR/observations.jsonl"
+  grep -q '"tool": "Read"' "$TMPDIR/.instinct-db/observations.jsonl"
+  grep -q '"session": "sess-abc"' "$TMPDIR/.instinct-db/observations.jsonl"
 }
 
 @test "skips observation when INSTINCT_SKIP_OBSERVE is set to 1" {
@@ -38,7 +38,7 @@ teardown() {
 
   echo "$input" | INSTINCT_SKIP_OBSERVE=1 bash "$OBSERVE_SH" post
 
-  [ ! -f "$TMPDIR/observations.jsonl" ]
+  [ ! -f "$TMPDIR/.instinct-db/observations.jsonl" ]
 }
 
 @test "skips observation when CLAUDE_CODE_ENTRYPOINT is not an interactive entrypoint" {
@@ -46,7 +46,7 @@ teardown() {
 
   echo "$input" | CLAUDE_CODE_ENTRYPOINT=api bash "$OBSERVE_SH" post
 
-  [ ! -f "$TMPDIR/observations.jsonl" ]
+  [ ! -f "$TMPDIR/.instinct-db/observations.jsonl" ]
 }
 
 @test "skips observation when agent_id is present (subagent session)" {
@@ -54,7 +54,7 @@ teardown() {
 
   echo "$input" | bash "$OBSERVE_SH" post
 
-  [ ! -f "$TMPDIR/observations.jsonl" ]
+  [ ! -f "$TMPDIR/.instinct-db/observations.jsonl" ]
 }
 
 @test "detects project dir by finding .instinct-db walking up from cwd" {
@@ -68,7 +68,7 @@ teardown() {
 
   echo "$input" | bash "$OBSERVE_SH" post
 
-  [ -f "$project_dir/observations.jsonl" ]
+  [ -f "$project_dir/.instinct-db/observations.jsonl" ]
   rm -rf "$project_dir"
 }
 
@@ -94,7 +94,7 @@ teardown() {
   local input_len
   input_len=$(python3 -c "
 import json
-d = json.loads(open('$TMPDIR/observations.jsonl').read())
+d = json.loads(open('$TMPDIR/.instinct-db/observations.jsonl').read())
 print(len(d.get('input', '')))
 ")
   [ "$input_len" -gt 0 ]
@@ -106,27 +106,27 @@ print(len(d.get('input', '')))
 
   echo "$input" | bash "$OBSERVE_SH" post
 
-  grep -v "supersecrettoken123" "$TMPDIR/observations.jsonl"
-  grep -q "REDACTED" "$TMPDIR/observations.jsonl"
+  grep -v "supersecrettoken123" "$TMPDIR/.instinct-db/observations.jsonl"
+  grep -q "REDACTED" "$TMPDIR/.instinct-db/observations.jsonl"
 }
 
 @test "archives observations.jsonl when it exceeds 10MB" {
-  dd if=/dev/zero bs=1M count=11 2>/dev/null | tr '\0' 'x' > "$TMPDIR/observations.jsonl"
+  dd if=/dev/zero bs=1M count=11 2>/dev/null | tr '\0' 'x' > "$TMPDIR/.instinct-db/observations.jsonl"
 
   local input="{\"tool_name\":\"Bash\",\"session_id\":\"sess-1\",\"cwd\":\"$TMPDIR\"}"
   echo "$input" | bash "$OBSERVE_SH" post
 
   local line_count
-  line_count=$(wc -l < "$TMPDIR/observations.jsonl")
+  line_count=$(wc -l < "$TMPDIR/.instinct-db/observations.jsonl")
   [ "$line_count" -eq 1 ]
-  ls "$TMPDIR/observations.archive/" | grep -q "observations-"
+  ls "$TMPDIR/.instinct-db/observations.archive/" | grep -q "observations-"
 }
 
 @test "sends SIGUSR1 to observer after every N observations" {
   local signal_file="$TMPDIR/got_signal"
   bash -c "trap 'touch $signal_file' USR1; while true; do sleep 10 & wait; done" &
   local observer_pid=$!
-  echo "$observer_pid" > "$TMPDIR/.observer.pid"
+  echo "$observer_pid" > "$TMPDIR/.instinct-db/.observer.pid"
 
   local input="{\"tool_name\":\"Bash\",\"session_id\":\"sess-1\",\"cwd\":\"$TMPDIR\"}"
 
@@ -145,6 +145,6 @@ print(len(d.get('input', '')))
 
   echo "$input" | bash "$OBSERVE_SH" post
 
-  [ -f "$TMPDIR/observations.jsonl" ]
-  [ "$(wc -l < "$TMPDIR/observations.jsonl")" -eq 1 ]
+  [ -f "$TMPDIR/.instinct-db/observations.jsonl" ]
+  [ "$(wc -l < "$TMPDIR/.instinct-db/observations.jsonl")" -eq 1 ]
 }

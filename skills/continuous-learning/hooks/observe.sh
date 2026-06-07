@@ -33,13 +33,14 @@ while True:
 fi
 [ -z "${CLAUDE_PROJECT_DIR:-}" ] && exit 0
 
-OBSERVATIONS_FILE="${CLAUDE_PROJECT_DIR}/observations.jsonl"
+INSTINCT_DB_DIR="${CLAUDE_PROJECT_DIR}/.instinct-db"
+OBSERVATIONS_FILE="${INSTINCT_DB_DIR}/observations.jsonl"
 MAX_FILE_SIZE_MB=10
 
 if [ -f "$OBSERVATIONS_FILE" ]; then
   file_size_mb=$(du -m "$OBSERVATIONS_FILE" 2>/dev/null | cut -f1)
   if [ "${file_size_mb:-0}" -ge "$MAX_FILE_SIZE_MB" ]; then
-    archive_dir="${CLAUDE_PROJECT_DIR}/observations.archive"
+    archive_dir="${INSTINCT_DB_DIR}/observations.archive"
     mkdir -p "$archive_dir"
     mv "$OBSERVATIONS_FILE" "$archive_dir/observations-$(date +%Y%m%d-%H%M%S)-$$.jsonl" 2>/dev/null || true
   fi
@@ -85,7 +86,7 @@ print(json.dumps(obs))
 
 # Signal observer every N observations
 SIGNAL_EVERY_N="${INSTINCT_OBSERVER_SIGNAL_EVERY_N:-20}"
-SIGNAL_COUNTER_FILE="${CLAUDE_PROJECT_DIR}/.observer-signal-counter"
+SIGNAL_COUNTER_FILE="${INSTINCT_DB_DIR}/.observer-signal-counter"
 counter=0
 if [ -f "$SIGNAL_COUNTER_FILE" ]; then
   counter=$(cat "$SIGNAL_COUNTER_FILE" 2>/dev/null || echo 0)
@@ -93,7 +94,7 @@ fi
 counter=$((counter + 1))
 if [ "$counter" -ge "$SIGNAL_EVERY_N" ]; then
   counter=0
-  pid_file="${CLAUDE_PROJECT_DIR}/.observer.pid"
+  pid_file="${INSTINCT_DB_DIR}/.observer.pid"
   if [ -f "$pid_file" ]; then
     observer_pid=$(cat "$pid_file" 2>/dev/null || true)
     case "$observer_pid" in

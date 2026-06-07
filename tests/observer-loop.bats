@@ -7,8 +7,8 @@ setup() {
 }
 
 teardown() {
-  if [ -f "$TMPDIR/.observer.pid" ]; then
-    kill "$(cat "$TMPDIR/.observer.pid")" 2>/dev/null || true
+  if [ -f "$TMPDIR/.instinct-db/.observer.pid" ]; then
+    kill "$(cat "$TMPDIR/.instinct-db/.observer.pid")" 2>/dev/null || true
   fi
   rm -rf "$TMPDIR"
 }
@@ -24,8 +24,8 @@ teardown() {
   local launched_pid=$!
   sleep 0.2
 
-  [ -f "$TMPDIR/.observer.pid" ]
-  [ "$(cat "$TMPDIR/.observer.pid")" = "$launched_pid" ]
+  [ -f "$TMPDIR/.instinct-db/.observer.pid" ]
+  [ "$(cat "$TMPDIR/.instinct-db/.observer.pid")" = "$launched_pid" ]
 }
 
 @test "SIGUSR1 triggers claude with observations as prompt" {
@@ -38,7 +38,7 @@ touch "$TMPDIR/claude_called"
 SH
   chmod +x "$fake_bin/claude"
 
-  echo '{"event":"tool_complete","tool":"Bash"}' > "$TMPDIR/observations.jsonl"
+  echo '{"event":"tool_complete","tool":"Bash"}' > "$TMPDIR/.instinct-db/observations.jsonl"
 
   PATH="$fake_bin:$PATH" bash "$OBSERVER_SH" "$TMPDIR" &
   local pid=$!
@@ -65,7 +65,7 @@ echo "\$@" >> "$TMPDIR/instinct_cli_calls"
 SH
   chmod +x "$fake_bin/instinct-cli"
 
-  echo '{"event":"tool_complete","tool":"Bash"}' > "$TMPDIR/observations.jsonl"
+  echo '{"event":"tool_complete","tool":"Bash"}' > "$TMPDIR/.instinct-db/observations.jsonl"
 
   PATH="$fake_bin:$PATH" bash "$OBSERVER_SH" "$TMPDIR" &
   local pid=$!
@@ -93,7 +93,7 @@ echo "\$@" >> "$TMPDIR/instinct_cli_calls"
 SH
   chmod +x "$fake_bin/instinct-cli"
 
-  echo '{"event":"tool_complete","tool":"Bash"}' > "$TMPDIR/observations.jsonl"
+  echo '{"event":"tool_complete","tool":"Bash"}' > "$TMPDIR/.instinct-db/observations.jsonl"
 
   PATH="$fake_bin:$PATH" bash "$OBSERVER_SH" "$TMPDIR" &
   local pid=$!
@@ -121,7 +121,7 @@ echo "\$@" >> "$TMPDIR/instinct_cli_calls"
 SH
   chmod +x "$fake_bin/instinct-cli"
 
-  echo '{"event":"tool_complete","tool":"Bash"}' > "$TMPDIR/observations.jsonl"
+  echo '{"event":"tool_complete","tool":"Bash"}' > "$TMPDIR/.instinct-db/observations.jsonl"
 
   PATH="$fake_bin:$PATH" bash "$OBSERVER_SH" "$TMPDIR" &
   local pid=$!
@@ -148,7 +148,7 @@ echo '[]'
 SH
   chmod +x "$fake_bin/claude"
 
-  echo '{"event":"tool_complete","tool":"Bash"}' > "$TMPDIR/observations.jsonl"
+  echo '{"event":"tool_complete","tool":"Bash"}' > "$TMPDIR/.instinct-db/observations.jsonl"
 
   PATH="$fake_bin:$PATH" bash "$OBSERVER_SH" "$TMPDIR" &
   local pid=$!
@@ -172,7 +172,7 @@ echo '[]'
 SH
   chmod +x "$fake_bin/claude"
 
-  echo '{"event":"tool_complete","tool":"Bash"}' > "$TMPDIR/observations.jsonl"
+  echo '{"event":"tool_complete","tool":"Bash"}' > "$TMPDIR/.instinct-db/observations.jsonl"
 
   PATH="$fake_bin:$PATH" bash "$OBSERVER_SH" "$TMPDIR" &
   local pid=$!
@@ -182,6 +182,6 @@ SH
   sleep 0.3
 
   kill "$pid" 2>/dev/null || true
-  [ ! -f "$TMPDIR/observations.jsonl" ]
-  ls "$TMPDIR/observations.archive/" | grep -q "observations-"
+  [ ! -f "$TMPDIR/.instinct-db/observations.jsonl" ]
+  ls "$TMPDIR/.instinct-db/observations.archive/" | grep -q "observations-"
 }

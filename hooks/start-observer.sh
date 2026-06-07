@@ -16,7 +16,7 @@ while True:
 " 2>/dev/null || true)
 [ -z "$PROJECT_DIR" ] && exit 0
 
-pid_file="${PROJECT_DIR}/.observer.pid"
+pid_file="${PROJECT_DIR}/.instinct-db/.observer.pid"
 if [ -f "$pid_file" ]; then
     pid=$(cat "$pid_file" 2>/dev/null || true)
     if kill -0 "$pid" 2>/dev/null; then
