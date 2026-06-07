@@ -46,3 +46,31 @@ SH
   kill "$pid" 2>/dev/null || true
   [ -f "$TMPDIR/claude_called" ]
 }
+
+@test "claude JSON output is passed to instinct-cli insert" {
+  local fake_bin="$TMPDIR/bin"
+  mkdir -p "$fake_bin"
+  cat > "$fake_bin/claude" <<'SH'
+#!/bin/bash
+echo '[{"content":"コマンド実行前に計画を立てる","trigger_desc":"Bash tool 使用時","domain":"workflow"}]'
+SH
+  chmod +x "$fake_bin/claude"
+  cat > "$fake_bin/instinct-cli" <<'SH'
+#!/bin/bash
+echo "$@" >> "${CLAUDE_PROJECT_DIR}/instinct_cli_calls"
+SH
+  chmod +x "$fake_bin/instinct-cli"
+
+  echo '{"event":"tool_complete","tool":"Bash"}' > "$TMPDIR/observations.jsonl"
+
+  PATH="$fake_bin:$PATH" bash "$OBSERVER_SH" &
+  local pid=$!
+  sleep 0.2
+
+  kill -USR1 "$pid"
+  sleep 0.3
+
+  kill "$pid" 2>/dev/null || true
+  grep -q "insert" "$TMPDIR/instinct_cli_calls"
+  grep -q "コマンド実行前に計画を立てる" "$TMPDIR/instinct_cli_calls"
+}
