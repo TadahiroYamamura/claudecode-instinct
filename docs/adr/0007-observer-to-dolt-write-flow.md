@@ -21,8 +21,8 @@ Haiku の出力フォーマット:
 ```json
 [
   {
-    "trigger_desc": "Goのテストを実行する時",
     "content": "make unit-test を使うこと。go test ./... は使わない",
+    "trigger_desc": "Goのテストを実行する時",
     "domain": "testing",
     "scope": "project",
     "observation_count": 5
@@ -30,23 +30,28 @@ Haiku の出力フォーマット:
 ]
 ```
 
-シェル側の処理:
+- `scope`: `"project"`（プロジェクト固有）または `"global"`（汎用）を Haiku が観察内容から判断して出力
+- `observation_count`: この知見の根拠となった観察の件数を Haiku が推定して出力
 
-```bash
-echo "$haiku_output" | jq -c '.[]' | while IFS= read -r item; do
-  "$INSTINCT_CLI" insert \
-    --trigger  "$(echo "$item" | jq -r '.trigger_desc')" \
-    --content  "$(echo "$item" | jq -r '.content')" \
-    --domain   "$(echo "$item" | jq -r '.domain')" \
-    --count    "$(echo "$item" | jq -r '.observation_count')" \
-    --project-id "$PROJECT_ID"
-done
+observer-loop.sh 側の処理（Python で JSON パース）:
+
+```python
+for item in data:
+    subprocess.run([
+        'instinct-cli', 'insert',
+        '--content', item['content'],
+        '--trigger', item['trigger_desc'],
+        '--domain',  item.get('domain', ''),
+        '--count',   str(item.get('observation_count', 0)),
+        '--scope',   item.get('scope', 'project'),
+    ])
 ```
+
+`--project-id` は instinct-cli 側がプロジェクトディレクトリの git 情報から自動生成する。
 
 ## Consequences
 
 - Haiku の `--allowedTools` を最小限（`Read` のみ）に保てる
 - Haiku の責務が「観察の分析と JSON 出力」に限定され、ツール呼び出しの副作用がない
-- JSON パースに `jq` が必要（ほぼすべての開発環境に存在する）
-- Haiku が出力した JSON が不正な場合、シェル側でエラーを捕捉しやすい
+- Haiku が出力した JSON が不正な場合、Python 側でエラーを捕捉しやすい
 - Dolt へのアクセスが `instinct-cli` に一元化され、Go 以外のランタイム（bash/Node.js）が Dolt に直接触れない
