@@ -49,16 +49,24 @@ const createInstinctsTable = `CREATE TABLE instincts (
 	updated_at        TIMESTAMP     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 )`
 
-// openConn returns a single Dolt connection pinned to the instincts database.
-// The caller must call the returned cleanup func when done.
-func openConn(ctx context.Context, dataDir string) (*sql.Conn, func(), error) {
+func openDoltDB(dataDir string) (*sql.DB, error) {
 	dsn, err := doltDSNWithGitIdentity(dataDir)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	db, err := sql.Open("dolt", dsn)
 	if err != nil {
-		return nil, nil, fmt.Errorf("open dolt: %w", err)
+		return nil, fmt.Errorf("open dolt: %w", err)
+	}
+	return db, nil
+}
+
+// openConn returns a single Dolt connection pinned to the instincts database.
+// The caller must call the returned cleanup func when done.
+func openConn(ctx context.Context, dataDir string) (*sql.Conn, func(), error) {
+	db, err := openDoltDB(dataDir)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	conn, err := db.Conn(ctx)
@@ -85,13 +93,9 @@ func setupDB(ctx context.Context, dataDir string) error {
 		return fmt.Errorf("mkdir: %w", err)
 	}
 
-	dsn, err := doltDSNWithGitIdentity(dataDir)
+	db, err := openDoltDB(dataDir)
 	if err != nil {
 		return err
-	}
-	db, err := sql.Open("dolt", dsn)
-	if err != nil {
-		return fmt.Errorf("open dolt: %w", err)
 	}
 	defer db.Close()
 
