@@ -79,6 +79,34 @@ SH
   grep -q "コマンド実行前に計画を立てる" "$TMPDIR/instinct_cli_calls"
 }
 
+@test "scope from claude output is passed to instinct-cli as --scope" {
+  local fake_bin="$TMPDIR/bin"
+  mkdir -p "$fake_bin"
+  cat > "$fake_bin/claude" <<'SH'
+#!/bin/bash
+echo '[{"content":"git push前にテストを実行する","trigger_desc":"git push時","domain":"git","observation_count":3,"scope":"global"}]'
+SH
+  chmod +x "$fake_bin/claude"
+  cat > "$fake_bin/instinct-cli" <<SH
+#!/bin/bash
+echo "\$@" >> "$TMPDIR/instinct_cli_calls"
+SH
+  chmod +x "$fake_bin/instinct-cli"
+
+  echo '{"event":"tool_complete","tool":"Bash"}' > "$TMPDIR/observations.jsonl"
+
+  PATH="$fake_bin:$PATH" bash "$OBSERVER_SH" "$TMPDIR" &
+  local pid=$!
+  sleep 0.2
+
+  kill -USR1 "$pid"
+  sleep 0.3
+
+  kill "$pid" 2>/dev/null || true
+  grep -q "\-\-scope" "$TMPDIR/instinct_cli_calls"
+  grep -q "global" "$TMPDIR/instinct_cli_calls"
+}
+
 @test "observation_count from claude output is passed to instinct-cli as --count" {
   local fake_bin="$TMPDIR/bin"
   mkdir -p "$fake_bin"

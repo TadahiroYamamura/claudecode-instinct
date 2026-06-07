@@ -18,7 +18,8 @@ _handle_usr1() {
     "content": "具体的な行動指針",
     "trigger_desc": "この知見を適用すべき状況",
     "domain": "分野（workflow/code/testing/git など）",
-    "observation_count": この知見の根拠となった観察の件数（整数）
+    "observation_count": この知見の根拠となった観察の件数（整数）,
+    "scope": "project" または "global"（プロジェクト固有なら project、どの作業でも使えるなら global）
   }
 ]
 
@@ -47,6 +48,7 @@ for item in data:
     trigger = item.get('trigger_desc', '')
     domain = item.get('domain', '')
     count = str(item.get('observation_count', 0))
+    scope = item.get('scope', 'project')
     if not content:
         continue
     subprocess.run(
@@ -54,7 +56,8 @@ for item in data:
          '--content', content,
          '--trigger', trigger,
          '--domain', domain,
-         '--count', count],
+         '--count', count,
+         '--scope', scope],
         env=os.environ, capture_output=True
     )
 " 2>/dev/null || true
