@@ -33,6 +33,10 @@ for item in data:
         env=os.environ, capture_output=True
     )
 " 2>/dev/null || true
+
+  local archive_dir="${CLAUDE_PROJECT_DIR}/observations.archive"
+  mkdir -p "$archive_dir"
+  mv "$obs_file" "$archive_dir/observations-$(date +%Y%m%d-%H%M%S)-$$.jsonl" 2>/dev/null || true
 }
 
 trap '_handle_usr1' USR1
