@@ -9,6 +9,7 @@ Phase 1 で蓄積されたデータを活用し、instinct の品質向上とチ
 - [ ] SessionStart フックによる instinct 注入（セッション開始時にコンテキストへ展開・最新 pull も含む）
 - [ ] 自動品質チェック（生成 instinct のスコアリング・フィルタリング）
 - [ ] dedup の ML モデル化（dedup_decisions を訓練データとして活用）
+- [ ] `list` / `dedup` に `--before` / `--after` オプション追加（期間指定でデータを絞り込む）
 
 ## 前提
 
