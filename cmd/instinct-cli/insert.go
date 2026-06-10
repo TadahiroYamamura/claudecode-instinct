@@ -9,7 +9,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// InsertParams holds the fields for a new instinct record.
 type InsertParams struct {
 	Content          string
 	TriggerDesc      string
