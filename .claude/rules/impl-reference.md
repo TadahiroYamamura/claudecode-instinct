@@ -63,6 +63,8 @@ confidence:
 
 dedup:
   auto_run_before_push: false
+  similarity_model: "bigram"    # bigram | trigram | overlap（運用成績で選択）
+  similarity_threshold: 0.15   # この値未満のペアはHaikuに送らない
 
 dolt:
   refs: "refs/dolt/project-name"   # モノレポ対応：プロジェクト固有 namespace（setup時にディレクトリ名から自動設定）

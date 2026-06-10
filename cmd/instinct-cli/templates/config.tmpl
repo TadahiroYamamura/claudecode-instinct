@@ -11,6 +11,8 @@ confidence:
 
 dedup:
   auto_run_before_push: false
+  similarity_model: "bigram"    # bigram | trigram | overlap
+  similarity_threshold: 0.15   # この値未満のペアはHaikuに送らない
 
 dolt:
   refs: refs/dolt/{{ .ProjectName }}/
