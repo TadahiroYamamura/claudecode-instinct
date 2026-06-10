@@ -19,6 +19,8 @@ var configTemplate string
 
 var configTmpl = template.Must(template.New("config").Parse(configTemplate))
 
+const defaultTeamBranch = "main"
+
 type configData struct {
 	ProjectName string
 	Branch      string
@@ -36,14 +38,14 @@ func runSetup(projectDir string, yes bool, in io.Reader, out io.Writer) error {
 
 	var branch, teamBranch, remoteURL string
 	if yes {
-		branch, teamBranch, remoteURL = defaultBranch, "main", defaultRemote
+		branch, teamBranch, remoteURL = defaultBranch, defaultTeamBranch, defaultRemote
 	} else {
 		reader := bufio.NewReader(in)
 		var err error
 		if branch, err = promptWithDefault(reader, out, "Branch", defaultBranch); err != nil {
 			return err
 		}
-		if teamBranch, err = promptWithDefault(reader, out, "Team branch", "main"); err != nil {
+		if teamBranch, err = promptWithDefault(reader, out, "Team branch", defaultTeamBranch); err != nil {
 			return err
 		}
 		if remoteURL, err = promptWithDefault(reader, out, "Remote URL", defaultRemote); err != nil {
