@@ -75,7 +75,7 @@ dolt:
 
 | コマンド | 説明 |
 |---------|------|
-| `instinct-cli setup` | Dolt DB 初期化 + リモート設定 |
+| `instinct-cli setup [-y]` | Dolt DB 初期化 + config.yml 生成（対話形式、`-y` で非対話） |
 | `instinct-cli insert` | instinct を INSERT |
 | `instinct-cli list` | 一覧表示 |
 | `instinct-cli list --merged` | 個人 + チームの統合一覧（重複排除） |
