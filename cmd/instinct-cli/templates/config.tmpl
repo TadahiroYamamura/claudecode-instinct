@@ -1,3 +1,17 @@
+observer:
+  enabled: true
+  trigger_every: 20
+  active_hours: "800-2300"
+
+confidence:
+  thresholds:
+    low: 3
+    medium: 6
+    high: 11
+
+dedup:
+  auto_run_before_push: false
+
 dolt:
   refs: refs/dolt/{{ .ProjectName }}/
   branch: {{ .Branch }}

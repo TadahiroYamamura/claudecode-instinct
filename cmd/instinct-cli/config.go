@@ -15,8 +15,31 @@ type DoltConfig struct {
 	RemoteURL  string `yaml:"remote_url"`
 }
 
+type ObserverConfig struct {
+	Enabled      bool   `yaml:"enabled"`
+	TriggerEvery int    `yaml:"trigger_every"`
+	ActiveHours  string `yaml:"active_hours"`
+}
+
+type ConfidenceThresholds struct {
+	Low    int `yaml:"low"`
+	Medium int `yaml:"medium"`
+	High   int `yaml:"high"`
+}
+
+type ConfidenceConfig struct {
+	Thresholds ConfidenceThresholds `yaml:"thresholds"`
+}
+
+type DedupConfig struct {
+	AutoRunBeforePush bool `yaml:"auto_run_before_push"`
+}
+
 type InstinctConfig struct {
-	Dolt DoltConfig `yaml:"dolt"`
+	Observer   ObserverConfig   `yaml:"observer"`
+	Confidence ConfidenceConfig `yaml:"confidence"`
+	Dedup      DedupConfig      `yaml:"dedup"`
+	Dolt       DoltConfig       `yaml:"dolt"`
 }
 
 func loadConfig(dbDir string) (*InstinctConfig, error) {
