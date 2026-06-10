@@ -37,7 +37,9 @@ CREATE TABLE dedup_decisions (
   trigger_b       TEXT          NOT NULL,
   decision        ENUM('duplicate','distinct') NOT NULL,
   reasoning       TEXT,
-  similarity      DECIMAL(4,3),
+  sim_bigram      DECIMAL(4,3),
+  sim_trigram     DECIMAL(4,3),
+  sim_overlap     DECIMAL(4,3),
   decided_by      ENUM('agent','human') NOT NULL DEFAULT 'agent',
   human_label     ENUM('correct','wrong'),  -- 人間による事後訂正（ML訓練データ用）
   source_branch_a VARCHAR(128),
@@ -63,8 +65,7 @@ confidence:
 
 dedup:
   auto_run_before_push: false
-  similarity_model: "bigram"    # bigram | trigram | overlap（運用成績で選択）
-  similarity_threshold: 0.15   # この値未満のペアはHaikuに送らない
+  similarity_threshold: 0.15   # いずれかのモデルがこの値以上のペアのみHaikuに送る
 
 dolt:
   refs: "refs/dolt/project-name"   # モノレポ対応：プロジェクト固有 namespace（setup時にディレクトリ名から自動設定）

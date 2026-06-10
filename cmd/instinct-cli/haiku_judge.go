@@ -20,7 +20,7 @@ var runClaude claudeRunner = func(ctx context.Context, model, prompt string) (st
 func dedupPrompt(a, b InstinctRow) string {
 	return fmt.Sprintf(`以下の2つのinstinctが意味的に重複しているか判定してください。
 JSONのみ返してください（説明文なし）:
-{"decision":"duplicate"または"distinct","reasoning":"判定理由","similarity":0.0〜1.0}
+{"decision":"duplicate"または"distinct","reasoning":"判定理由"}
 
 ## instinct A
 content: %s

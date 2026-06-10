@@ -33,7 +33,6 @@ type ConfidenceConfig struct {
 
 type DedupConfig struct {
 	AutoRunBeforePush   bool    `yaml:"auto_run_before_push"`
-	SimilarityModel     string  `yaml:"similarity_model"`
 	SimilarityThreshold float64 `yaml:"similarity_threshold"`
 }
 

@@ -60,25 +60,25 @@ func overlapSimilarity(a, b string) float64 {
 	return float64(intersection) / float64(union)
 }
 
-const (
-	defaultSimilarityModel     = "bigram"
-	defaultSimilarityThreshold = 0.15
-)
-
-var similarityModels = map[string]SimilarityFunc{
-	"bigram":  bigramSimilarity,
-	"trigram": trigramSimilarity,
-	"overlap": overlapSimilarity,
+type SimilarityScores struct {
+	Bigram  float64
+	Trigram float64
+	Overlap float64
 }
 
-func similarityFuncFromConfig(cfg *InstinctConfig) SimilarityFunc {
-	if cfg != nil {
-		if fn, ok := similarityModels[cfg.Dedup.SimilarityModel]; ok {
-			return fn
-		}
+func computeAllScores(a, b string) SimilarityScores {
+	return SimilarityScores{
+		Bigram:  bigramSimilarity(a, b),
+		Trigram: trigramSimilarity(a, b),
+		Overlap: overlapSimilarity(a, b),
 	}
-	return similarityModels[defaultSimilarityModel]
 }
+
+func anyAbove(scores SimilarityScores, threshold float64) bool {
+	return scores.Bigram >= threshold || scores.Trigram >= threshold || scores.Overlap >= threshold
+}
+
+const defaultSimilarityThreshold = 0.15
 
 func similarityThresholdFromConfig(cfg *InstinctConfig) float64 {
 	if cfg != nil && cfg.Dedup.SimilarityThreshold > 0 {

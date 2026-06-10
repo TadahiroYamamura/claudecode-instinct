@@ -129,7 +129,7 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 		}
 		defer cleanup()
 		cfg, _ := loadConfig(instinctDbDir(projectDir))
-		return execDedup(context.Background(), conn, haikuJudge, similarityFuncFromConfig(cfg), similarityThresholdFromConfig(cfg), out)
+		return execDedup(context.Background(), conn, haikuJudge, similarityThresholdFromConfig(cfg), out)
 	default:
 		return fmt.Errorf("unknown command: %s", kctx.Command())
 	}

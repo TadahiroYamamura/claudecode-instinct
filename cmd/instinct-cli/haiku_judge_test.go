@@ -22,9 +22,6 @@ func TestHaikuJudge_ParsesDuplicateDecision(t *testing.T) {
 	if d.Decision != decisionDuplicate {
 		t.Errorf("expected decision=%q, got %q", decisionDuplicate, d.Decision)
 	}
-	if d.Similarity != 0.85 {
-		t.Errorf("expected similarity=0.85, got %f", d.Similarity)
-	}
 	if d.Reasoning != "同じ知見の言い換え" {
 		t.Errorf("expected reasoning set, got %q", d.Reasoning)
 	}

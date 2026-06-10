@@ -15,19 +15,18 @@ const (
 )
 
 type DedupDecision struct {
-	Decision   string
-	Reasoning  string
-	Similarity float64
+	Decision  string
+	Reasoning string
 }
 
 type DedupJudge func(ctx context.Context, a, b InstinctRow) (DedupDecision, error)
 
-func insertDedupDecision(ctx context.Context, conn *sql.Conn, a, b InstinctRow, d DedupDecision, computedSim float64) error {
+func insertDedupDecision(ctx context.Context, conn *sql.Conn, a, b InstinctRow, d DedupDecision, scores SimilarityScores) error {
 	_, err := conn.ExecContext(ctx, `INSERT INTO dedup_decisions
-		(id, instinct_id_a, instinct_id_b, content_a, content_b, trigger_a, trigger_b, decision, reasoning, similarity)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		(id, instinct_id_a, instinct_id_b, content_a, content_b, trigger_a, trigger_b, decision, reasoning, sim_bigram, sim_trigram, sim_overlap)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		uuid.New().String(), a.ID, b.ID, a.Content, b.Content, a.TriggerDesc, b.TriggerDesc,
-		d.Decision, d.Reasoning, computedSim,
+		d.Decision, d.Reasoning, scores.Bigram, scores.Trigram, scores.Overlap,
 	)
 	return err
 }
@@ -43,7 +42,7 @@ func mergeAndDelete(ctx context.Context, conn *sql.Conn, winner, loser InstinctR
 	return err
 }
 
-func execDedup(ctx context.Context, conn *sql.Conn, judge DedupJudge, simFn SimilarityFunc, threshold float64, w io.Writer) error {
+func execDedup(ctx context.Context, conn *sql.Conn, judge DedupJudge, threshold float64, w io.Writer) error {
 	instincts, err := listInstincts(ctx, conn)
 	if err != nil {
 		return err
@@ -53,15 +52,15 @@ func execDedup(ctx context.Context, conn *sql.Conn, judge DedupJudge, simFn Simi
 	for i := 0; i < len(instincts); i++ {
 		for j := i + 1; j < len(instincts); j++ {
 			a, b := instincts[i], instincts[j]
-			sim := simFn(a.Content, b.Content)
-			if sim < threshold {
+			scores := computeAllScores(a.Content, b.Content)
+			if !anyAbove(scores, threshold) {
 				continue
 			}
 			d, err := judge(ctx, a, b)
 			if err != nil {
 				return fmt.Errorf("judge pair (%s, %s): %w", a.ID, b.ID, err)
 			}
-			if err := insertDedupDecision(ctx, conn, a, b, d, sim); err != nil {
+			if err := insertDedupDecision(ctx, conn, a, b, d, scores); err != nil {
 				return fmt.Errorf("record decision: %w", err)
 			}
 			if d.Decision == decisionDuplicate {

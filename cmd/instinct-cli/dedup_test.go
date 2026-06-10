@@ -27,7 +27,7 @@ func TestExecDedup_SkipsPairsBelowThreshold(t *testing.T) {
 
 	var buf strings.Builder
 	// threshold=1.0 なら完全一致以外はすべてスキップ
-	if err := execDedup(ctx, conn, judge, bigramSimilarity, 1.0, &buf); err != nil {
+	if err := execDedup(ctx, conn, judge, 1.0, &buf); err != nil {
 		t.Fatalf("execDedup: %v", err)
 	}
 	if callCount != 0 {
@@ -43,7 +43,7 @@ func TestExecDedup_EmptyInstinctsReportsZeroPairs(t *testing.T) {
 	judge := func(_ context.Context, _, _ InstinctRow) (DedupDecision, error) {
 		return DedupDecision{}, nil
 	}
-	if err := execDedup(ctx, conn, judge, bigramSimilarity, 0.0, &buf); err != nil {
+	if err := execDedup(ctx, conn, judge, 0.0, &buf); err != nil {
 		t.Fatalf("execDedup: %v", err)
 	}
 	if !strings.Contains(buf.String(), "0") {
@@ -70,11 +70,11 @@ func TestExecDedup_DuplicateMergesObservationCountAndDeletesOne(t *testing.T) {
 	}
 
 	judge := func(_ context.Context, _, _ InstinctRow) (DedupDecision, error) {
-		return DedupDecision{Decision: decisionDuplicate, Reasoning: "同じ知見の言い換え", Similarity: 0.85}, nil
+		return DedupDecision{Decision: decisionDuplicate, Reasoning: "同じ知見の言い換え"}, nil
 	}
 
 	var buf strings.Builder
-	if err := execDedup(ctx, conn, judge, bigramSimilarity, 0.0, &buf); err != nil {
+	if err := execDedup(ctx, conn, judge, 0.0, &buf); err != nil {
 		t.Fatalf("execDedup: %v", err)
 	}
 
@@ -97,6 +97,45 @@ func TestExecDedup_DuplicateMergesObservationCountAndDeletesOne(t *testing.T) {
 	}
 }
 
+// execDedupは3つのモデルのスコアをすべてdedup_decisionsに記録する
+func TestExecDedup_AllModelScoresAreRecorded(t *testing.T) {
+	ctx, conn := setupTestDB(t)
+
+	for _, params := range []InsertParams{
+		{Content: "テスト前にlintを通す", TriggerDesc: "テスト実行時", Domain: "testing", Scope: "project", ObservationCount: 3, ProjectID: "abc"},
+		{Content: "lintエラーを解消してからテストを走らせる", TriggerDesc: "テスト実行時", Domain: "testing", Scope: "project", ObservationCount: 2, ProjectID: "abc"},
+	} {
+		if _, err := insertInstinct(ctx, conn, params); err != nil {
+			t.Fatalf("insert: %v", err)
+		}
+	}
+
+	judge := func(_ context.Context, _, _ InstinctRow) (DedupDecision, error) {
+		return DedupDecision{Decision: decisionDistinct}, nil
+	}
+
+	var buf strings.Builder
+	if err := execDedup(ctx, conn, judge, 0.0, &buf); err != nil {
+		t.Fatalf("execDedup: %v", err)
+	}
+
+	var simBigram, simTrigram, simOverlap float64
+	if err := conn.QueryRowContext(ctx,
+		"SELECT sim_bigram, sim_trigram, sim_overlap FROM dedup_decisions LIMIT 1",
+	).Scan(&simBigram, &simTrigram, &simOverlap); err != nil {
+		t.Fatalf("query scores: %v", err)
+	}
+	if simBigram <= 0 {
+		t.Errorf("expected sim_bigram > 0, got %f", simBigram)
+	}
+	if simTrigram <= 0 {
+		t.Errorf("expected sim_trigram > 0, got %f", simTrigram)
+	}
+	if simOverlap <= 0 {
+		t.Errorf("expected sim_overlap > 0, got %f", simOverlap)
+	}
+}
+
 // execDedupはduplicateと判定されたペアをdedup_decisionsに記録する
 func TestExecDedup_DuplicateDecisionIsRecorded(t *testing.T) {
 	ctx, conn := setupTestDB(t)
@@ -112,11 +151,11 @@ func TestExecDedup_DuplicateDecisionIsRecorded(t *testing.T) {
 	}
 
 	judge := func(_ context.Context, _, _ InstinctRow) (DedupDecision, error) {
-		return DedupDecision{Decision: decisionDuplicate, Reasoning: "同じ知見の言い換え", Similarity: 0.85}, nil
+		return DedupDecision{Decision: decisionDuplicate, Reasoning: "同じ知見の言い換え"}, nil
 	}
 
 	var buf strings.Builder
-	if err := execDedup(ctx, conn, judge, bigramSimilarity, 0.0, &buf); err != nil {
+	if err := execDedup(ctx, conn, judge, 0.0, &buf); err != nil {
 		t.Fatalf("execDedup: %v", err)
 	}
 
