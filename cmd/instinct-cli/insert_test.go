@@ -125,34 +125,6 @@ func TestInsertInstinct_ReturnsGeneratedID(t *testing.T) {
 	}
 }
 
-// execInsertはinstinctをinsertした後にdoltコミットを作成する
-func TestExecInsert_CreatesDoltCommit(t *testing.T) {
-	ctx, conn := setupTestDB(t)
-
-	var before int
-	if err := conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM dolt_log").Scan(&before); err != nil {
-		t.Fatalf("dolt_log before: %v", err)
-	}
-
-	if err := execInsert(ctx, conn, insertFlags{
-		Content: "テスト実行前に仕様を確認する",
-		Trigger: "テスト実行時",
-		Domain:  "testing",
-		Count:   1,
-		Scope:   "project",
-	}, func(string) (string, error) { return "abc123", nil }); err != nil {
-		t.Fatalf("execInsert: %v", err)
-	}
-
-	var after int
-	if err := conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM dolt_log").Scan(&after); err != nil {
-		t.Fatalf("dolt_log after: %v", err)
-	}
-	if after != before+1 {
-		t.Errorf("expected dolt_log to grow by 1, before=%d after=%d", before, after)
-	}
-}
-
 func TestInsert_StoresInstinct(t *testing.T) {
 	ctx, conn := setupTestDB(t)
 
