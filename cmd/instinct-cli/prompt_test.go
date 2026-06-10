@@ -39,7 +39,7 @@ func TestPromptWithDefault_ShowsLabelAndDefault(t *testing.T) {
 	r := bufio.NewReader(strings.NewReader("\n"))
 	var w strings.Builder
 
-	promptWithDefault(r, &w, "Branch", "tadahiro") //nolint
+	_, _ = promptWithDefault(r, &w, "Branch", "tadahiro")
 	if w.String() != "Branch [tadahiro]: " {
 		t.Errorf("expected %q, got %q", "Branch [tadahiro]: ", w.String())
 	}
