@@ -89,8 +89,12 @@ func dispatch(args []string, cwd string) error {
 			return err
 		}
 		defer cleanup()
+		cfg, _ := loadConfig(instinctDbDir(projectDir))
+		if cfg == nil {
+			cfg = &InstinctConfig{}
+		}
 		if cli.List.Merged {
-			return execListMerged(context.Background(), conn, teamBranchFromConfig(projectDir), os.Stdout)
+			return execListMerged(context.Background(), conn, cfg, os.Stdout)
 		}
 		return execList(context.Background(), conn, os.Stdout)
 	case "show <id>":

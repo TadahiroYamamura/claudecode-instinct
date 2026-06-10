@@ -8,21 +8,15 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-type InstinctConfig struct {
-	Dolt struct {
-		Refs       string `yaml:"refs"`
-		Branch     string `yaml:"branch"`
-		TeamBranch string `yaml:"team_branch"`
-		RemoteURL  string `yaml:"remote_url"`
-	} `yaml:"dolt"`
+type DoltConfig struct {
+	Refs       string `yaml:"refs"`
+	Branch     string `yaml:"branch"`
+	TeamBranch string `yaml:"team_branch"`
+	RemoteURL  string `yaml:"remote_url"`
 }
 
-func teamBranchFromConfig(projectDir string) string {
-	cfg, err := loadConfig(instinctDbDir(projectDir))
-	if err != nil || cfg.Dolt.TeamBranch == "" {
-		return "main"
-	}
-	return cfg.Dolt.TeamBranch
+type InstinctConfig struct {
+	Dolt DoltConfig `yaml:"dolt"`
 }
 
 func loadConfig(dbDir string) (*InstinctConfig, error) {

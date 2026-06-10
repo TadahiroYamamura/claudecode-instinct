@@ -91,7 +91,11 @@ func printInstincts(rows []InstinctRow, w io.Writer) error {
 	return tw.Flush()
 }
 
-func execListMerged(ctx context.Context, conn *sql.Conn, teamBranch string, w io.Writer) error {
+func execListMerged(ctx context.Context, conn *sql.Conn, cfg *InstinctConfig, w io.Writer) error {
+	teamBranch := cfg.Dolt.TeamBranch
+	if teamBranch == "" {
+		teamBranch = "main"
+	}
 	rows, err := listMergedInstincts(ctx, conn, teamBranch)
 	if err != nil {
 		return err

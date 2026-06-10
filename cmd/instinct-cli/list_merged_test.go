@@ -34,7 +34,7 @@ func TestListMerged_IncludesMainBranchInstincts(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	if err := execListMerged(ctx, conn, "main", &buf); err != nil {
+	if err := execListMerged(ctx, conn, &InstinctConfig{}, &buf); err != nil {
 		t.Fatalf("execListMerged: %v", err)
 	}
 	out := buf.String()
@@ -73,7 +73,7 @@ func TestListMerged_UsesConfiguredTeamBranch(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	if err := execListMerged(ctx, conn, "team", &buf); err != nil {
+	if err := execListMerged(ctx, conn, &InstinctConfig{Dolt: DoltConfig{TeamBranch: "team"}}, &buf); err != nil {
 		t.Fatalf("execListMerged: %v", err)
 	}
 	if !strings.Contains(buf.String(), "team branch instinct") {
@@ -103,7 +103,7 @@ func TestListMerged_DeduplicatesByID(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	if err := execListMerged(ctx, conn, "main", &buf); err != nil {
+	if err := execListMerged(ctx, conn, &InstinctConfig{}, &buf); err != nil {
 		t.Fatalf("execListMerged: %v", err)
 	}
 
