@@ -56,6 +56,7 @@ func execList(ctx context.Context, conn *sql.Conn, w io.Writer) error {
 		return err
 	}
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(tw, "ID\tCONTENT\tTRIGGER\tDOMAIN\tOBS\tSCOPE")
 	for _, r := range rows {
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%d\t%s\n",
 			r.ID[:shortIDLen],
