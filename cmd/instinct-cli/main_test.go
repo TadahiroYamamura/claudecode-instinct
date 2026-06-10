@@ -9,6 +9,52 @@ import (
 )
 
 
+// siblingワークツリーはsetup前にメインの.instinct-dbを誤発見しない
+func TestFindProjectDirFrom_SiblingWorktree_NotFoundBeforeSetup(t *testing.T) {
+	mainDir := t.TempDir()
+	mustRun(t, "git", "-C", mainDir, "init")
+	mustRun(t, "git", "-C", mainDir, "config", "user.email", "test@test.com")
+	mustRun(t, "git", "-C", mainDir, "config", "user.name", "Test")
+	mustRun(t, "git", "-C", mainDir, "commit", "--allow-empty", "-m", "init")
+	if err := os.MkdirAll(filepath.Join(mainDir, ".instinct-db"), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	// sibling: mainDirの外に作成
+	siblingDir := filepath.Join(t.TempDir(), "project-feature")
+	mustRun(t, "git", "-C", mainDir, "worktree", "add", "-b", "feature", siblingDir)
+
+	_, err := findProjectDirFrom(siblingDir)
+	if err == nil {
+		t.Error("sibling worktree should not find main worktree's .instinct-db before setup")
+	}
+}
+
+// siblingワークツリーはsetup後に自分の.instinct-dbを発見する
+func TestFindProjectDirFrom_SiblingWorktree_FindsOwnAfterSetup(t *testing.T) {
+	mainDir := t.TempDir()
+	mustRun(t, "git", "-C", mainDir, "init")
+	mustRun(t, "git", "-C", mainDir, "config", "user.email", "test@test.com")
+	mustRun(t, "git", "-C", mainDir, "config", "user.name", "Test")
+	mustRun(t, "git", "-C", mainDir, "commit", "--allow-empty", "-m", "init")
+
+	siblingDir := filepath.Join(t.TempDir(), "project-feature")
+	mustRun(t, "git", "-C", mainDir, "worktree", "add", "-b", "feature", siblingDir)
+
+	// setup後: siblingに固有の.instinct-dbを作成
+	if err := os.MkdirAll(filepath.Join(siblingDir, ".instinct-db"), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	found, err := findProjectDirFrom(siblingDir)
+	if err != nil {
+		t.Fatalf("sibling worktree should find own .instinct-db after setup: %v", err)
+	}
+	if found != siblingDir {
+		t.Errorf("expected %s, got %s", siblingDir, found)
+	}
+}
+
 // in-treeワークツリーからgit境界を越えて親の.instinct-dbを誤発見しない
 func TestFindProjectDirFrom_DoesNotCrossIntoParentWorktree(t *testing.T) {
 	mainDir := t.TempDir()
