@@ -34,6 +34,8 @@ PROMPT
   local claude_output
   claude_output=$(claude --model "${INSTINCT_CLAUDE_MODEL:-haiku}" --print "$prompt" 2>/dev/null) || return 0
 
+  instinct-cli pull 2>/dev/null || true
+
   echo "$claude_output" | python3 -c "
 import json, sys, subprocess, os
 
