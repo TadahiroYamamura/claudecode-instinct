@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -71,6 +72,31 @@ func TestSetup_ConfigYmlContainsTeamBranch(t *testing.T) {
 	}
 	if !strings.Contains(string(data), "team_branch: main") {
 		t.Errorf("config.yml does not contain team_branch: main, got:\n%s", data)
+	}
+}
+
+// setup実行後にconfig.ymlのdolt.remote_urlがorigin remoteから設定される
+func TestSetup_ConfigYmlContainsRemoteURL(t *testing.T) {
+	dir := t.TempDir()
+	mustRun(t, "git", "-C", dir, "init")
+	mustRun(t, "git", "-C", dir, "remote", "add", "origin", "https://github.com/test/repo.git")
+
+	if err := runSetup(dir); err != nil {
+		t.Fatalf("runSetup: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, ".instinct-db", "config.yml"))
+	if err != nil {
+		t.Fatalf("read config.yml: %v", err)
+	}
+	if !strings.Contains(string(data), "remote_url: https://github.com/test/repo.git") {
+		t.Errorf("config.yml does not contain remote_url, got:\n%s", data)
+	}
+}
+
+func mustRun(t *testing.T, name string, args ...string) {
+	t.Helper()
+	if out, err := exec.Command(name, args...).CombinedOutput(); err != nil {
+		t.Fatalf("%s %v: %v\n%s", name, args, err, out)
 	}
 }
 

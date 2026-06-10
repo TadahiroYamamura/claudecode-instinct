@@ -21,11 +21,13 @@ func runSetup(projectDir string) error {
 		return err
 	}
 
+	remoteURL, _ := gitOutput(projectDir, "remote", "get-url", "origin")
+
 	projectName := filepath.Base(projectDir)
 	dbDir := instinctDbDir(projectDir)
 
 	configPath := filepath.Join(dbDir, "config.yml")
-	config := fmt.Sprintf("dolt:\n  refs: refs/dolt/%s/\n  branch: %s\n  team_branch: main\n", projectName, branch)
+	config := fmt.Sprintf("dolt:\n  refs: refs/dolt/%s/\n  branch: %s\n  team_branch: main\n  remote_url: %s\n", projectName, branch, remoteURL)
 	if err := os.WriteFile(configPath, []byte(config), 0o644); err != nil {
 		return err
 	}
