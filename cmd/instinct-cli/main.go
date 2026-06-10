@@ -16,10 +16,22 @@ func openProjectConn(cwd string) (*sql.Conn, string, func(), error) {
 	if err != nil {
 		return nil, "", nil, err
 	}
+
+	userCfg, err := loadUserConfig(instinctDbDir(projectDir))
+	if err != nil {
+		return nil, "", nil, fmt.Errorf("setup not complete: %w", err)
+	}
+
 	conn, cleanup, err := openConn(context.Background(), instinctDataDir(projectDir))
 	if err != nil {
 		return nil, "", nil, err
 	}
+
+	if _, err := conn.ExecContext(context.Background(), "CALL dolt_checkout(?)", userCfg.Dolt.Branch); err != nil {
+		cleanup()
+		return nil, "", nil, fmt.Errorf("checkout %s: %w", userCfg.Dolt.Branch, err)
+	}
+
 	return conn, projectDir, cleanup, nil
 }
 

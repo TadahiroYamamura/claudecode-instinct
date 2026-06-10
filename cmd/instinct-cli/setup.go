@@ -85,6 +85,7 @@ func execSetup(projectDir string, yes bool, in io.Reader, out io.Writer, cloneFn
 		return fmt.Errorf("remote_url is required: specify git remote origin or answer the prompt")
 	}
 
+	branch = sanitizeBranchName(branch)
 	projectName := filepath.Base(projectDir)
 	refs := "refs/dolt/" + projectName + "/"
 	dbDir := instinctDbDir(projectDir)
@@ -159,6 +160,18 @@ func writeTeamConfig(dbDir, projectName, teamBranch, remoteURL string) error {
 		return err
 	}
 	return os.WriteFile(filepath.Join(dbDir, "config.team.yml"), buf.Bytes(), 0o644)
+}
+
+func sanitizeBranchName(name string) string {
+	var out []rune
+	for _, r := range name {
+		if r == ' ' || r == '/' || r == '\\' {
+			out = append(out, '-')
+		} else {
+			out = append(out, r)
+		}
+	}
+	return string(out)
 }
 
 func writeUserConfig(dbDir, branch string) error {

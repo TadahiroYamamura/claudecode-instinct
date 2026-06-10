@@ -211,6 +211,14 @@ func TestSetup_ClonePath_WritesOnlyUserConfig(t *testing.T) {
 	}
 }
 
+// sanitizeBranchNameはスペースをハイフンに置換する（Doltブランチ名はスペース不可）
+func TestSanitizeBranchName_ReplacesSpacesWithHyphens(t *testing.T) {
+	got := sanitizeBranchName("Tadahiro Yamamura")
+	if got != "Tadahiro-Yamamura" {
+		t.Errorf("expected Tadahiro-Yamamura, got %q", got)
+	}
+}
+
 // remote_urlが空のままsetupを実行するとエラーになる
 func TestSetup_ErrorWhenRemoteURLEmpty(t *testing.T) {
 	dir := t.TempDir()
