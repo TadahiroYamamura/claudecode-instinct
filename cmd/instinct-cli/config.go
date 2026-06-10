@@ -17,6 +17,14 @@ type InstinctConfig struct {
 	} `yaml:"dolt"`
 }
 
+func teamBranchFromConfig(projectDir string) string {
+	cfg, err := loadConfig(instinctDbDir(projectDir))
+	if err != nil || cfg.Dolt.TeamBranch == "" {
+		return "main"
+	}
+	return cfg.Dolt.TeamBranch
+}
+
 func loadConfig(dbDir string) (*InstinctConfig, error) {
 	data, err := os.ReadFile(filepath.Join(dbDir, "config.yml"))
 	if err != nil {

@@ -84,13 +84,13 @@ func dispatch(args []string, cwd string) error {
 			return resolveProjectID(projectDir)
 		})
 	case "list":
-		conn, _, cleanup, err := openProjectConn(cwd)
+		conn, projectDir, cleanup, err := openProjectConn(cwd)
 		if err != nil {
 			return err
 		}
 		defer cleanup()
 		if cli.List.Merged {
-			return execListMerged(context.Background(), conn, "main", os.Stdout)
+			return execListMerged(context.Background(), conn, teamBranchFromConfig(projectDir), os.Stdout)
 		}
 		return execList(context.Background(), conn, os.Stdout)
 	case "show <id>":
