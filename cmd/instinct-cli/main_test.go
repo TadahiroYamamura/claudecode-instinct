@@ -31,6 +31,31 @@ func TestCLI_ListCommand_PrintsInsertedRecord(t *testing.T) {
 	}
 }
 
+// list出力の各行にID短縮形（先頭8文字）が含まれる
+func TestCLI_ListCommand_ShowsShortID(t *testing.T) {
+	ctx, conn := setupTestDB(t)
+
+	id, err := insertInstinct(ctx, conn, InsertParams{
+		Content:          "git push前にテストを実行する",
+		TriggerDesc:      "git push時",
+		Domain:           "git",
+		Scope:            "project",
+		ObservationCount: 3,
+		ProjectID:        "abc123def456",
+	})
+	if err != nil {
+		t.Fatalf("insertInstinct: %v", err)
+	}
+
+	var buf strings.Builder
+	if err := execList(ctx, conn, &buf); err != nil {
+		t.Fatalf("execList: %v", err)
+	}
+	if !strings.Contains(buf.String(), id[:8]) {
+		t.Errorf("expected short ID %q in output, got:\n%s", id[:8], buf.String())
+	}
+}
+
 // サブコマンドなしのとき.instinct-db探索エラーではなく使用法エラーを返す
 func TestDispatch_NoArgs_ReturnsUsageErrorNotProjectDirError(t *testing.T) {
 	dir := t.TempDir() // .instinct-dbが存在しないディレクトリ
