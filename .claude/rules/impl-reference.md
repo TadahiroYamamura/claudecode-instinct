@@ -49,7 +49,11 @@ CREATE TABLE dedup_decisions (
 );
 ```
 
-## config.yml 構造
+## 設定ファイル構造
+
+設定は2ファイルに分割されている。
+
+### config.team.yml（Git管理・チーム共有）
 
 ```yaml
 observer:
@@ -68,11 +72,19 @@ dedup:
   similarity_threshold: 0.15   # いずれかのモデルがこの値以上のペアのみHaikuに送る
 
 dolt:
-  refs: "refs/dolt/project-name"   # モノレポ対応：プロジェクト固有 namespace（setup時にディレクトリ名から自動設定）
-  branch: tadahiro                 # 個人ブランチ名（setup時にgit config user.nameから自動設定）
+  refs: "refs/dolt/project-name/"  # モノレポ対応：プロジェクト固有 namespace（setup時にディレクトリ名から自動設定）
   team_branch: main                # チームブランチ名（list --merged の参照先）
   remote_url: "git@github.com:ORG/REPO.git"  # push/pull先（setup時にgit remote origin urlから自動設定）
 ```
+
+### config.user.yml（gitignore対象・ユーザー固有）
+
+```yaml
+dolt:
+  branch: tadahiro  # 個人ブランチ名（setup時にgit config user.nameから自動設定、スペースはハイフンに変換）
+```
+
+**config.user.yml が存在しない = setup 未実施 → エラー**（フォールバックなし）
 
 ## instinct-cli サブコマンド
 
@@ -86,5 +98,5 @@ dolt:
 | `instinct-cli show <id>` | 指定した instinct の全フィールドを全文表示 |
 | `instinct-cli dedup` | Haiku によるブランチ内 dedup（dedup_decisions に記録 + commit） |
 | `instinct-cli review` | main にない新規 instinct 一覧（レビュー待ちキュー） |
-| `instinct-cli push` | 個人ブランチをリモートへ push（branch 未設定はエラー、main へのフォールバックなし） |
-| `instinct-cli pull` | チームブランチ（team_branch）をリモートから取得 |
+| `instinct-cli push` | config.user.yml の branch をリモートへ push（branch 未設定はエラー、main へのフォールバックなし） |
+| `instinct-cli pull` | チームブランチと個人ブランチの両方をpull（チーム→個人の順、完了後は個人ブランチに滞留） |
