@@ -2,14 +2,13 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"strings"
 	"testing"
 )
 
-// execDedupは類似度が閾値未満のペアをHaikuに送らない
-func TestExecDedup_SkipsPairsBelowThreshold(t *testing.T) {
-	ctx, conn := setupTestDB(t)
-
+func insertLintInstincts(t *testing.T, ctx context.Context, conn *sql.Conn) {
+	t.Helper()
 	for _, params := range []InsertParams{
 		{Content: "テスト前にlintを通す", TriggerDesc: "テスト実行時", Domain: "testing", Scope: "project", ObservationCount: 3, ProjectID: "abc"},
 		{Content: "lintエラーを解消してからテストを走らせる", TriggerDesc: "テスト実行時", Domain: "testing", Scope: "project", ObservationCount: 2, ProjectID: "abc"},
@@ -18,6 +17,12 @@ func TestExecDedup_SkipsPairsBelowThreshold(t *testing.T) {
 			t.Fatalf("insert: %v", err)
 		}
 	}
+}
+
+// execDedupは類似度が閾値未満のペアをHaikuに送らない
+func TestExecDedup_SkipsPairsBelowThreshold(t *testing.T) {
+	ctx, conn := setupTestDB(t)
+	insertLintInstincts(t, ctx, conn)
 
 	callCount := 0
 	judge := func(_ context.Context, _, _ InstinctRow) (DedupDecision, error) {
@@ -54,20 +59,7 @@ func TestExecDedup_EmptyInstinctsReportsZeroPairs(t *testing.T) {
 // execDedupはduplicateと判定されたinstinctをマージして重複を1件に削除する
 func TestExecDedup_DuplicateMergesObservationCountAndDeletesOne(t *testing.T) {
 	ctx, conn := setupTestDB(t)
-
-	// 表現は異なるが意味的に同一なinstinctを2件挿入
-	if _, err := insertInstinct(ctx, conn, InsertParams{
-		Content: "テスト前にlintを通す", TriggerDesc: "テスト実行時",
-		Domain: "testing", Scope: "project", ObservationCount: 3, ProjectID: "abc",
-	}); err != nil {
-		t.Fatalf("insert A: %v", err)
-	}
-	if _, err := insertInstinct(ctx, conn, InsertParams{
-		Content: "lintエラーを解消してからテストを走らせる", TriggerDesc: "テスト実行時",
-		Domain: "testing", Scope: "project", ObservationCount: 2, ProjectID: "abc",
-	}); err != nil {
-		t.Fatalf("insert B: %v", err)
-	}
+	insertLintInstincts(t, ctx, conn)
 
 	judge := func(_ context.Context, _, _ InstinctRow) (DedupDecision, error) {
 		return DedupDecision{Decision: decisionDuplicate, Reasoning: "同じ知見の言い換え"}, nil
@@ -100,15 +92,7 @@ func TestExecDedup_DuplicateMergesObservationCountAndDeletesOne(t *testing.T) {
 // execDedupは3つのモデルのスコアをすべてdedup_decisionsに記録する
 func TestExecDedup_AllModelScoresAreRecorded(t *testing.T) {
 	ctx, conn := setupTestDB(t)
-
-	for _, params := range []InsertParams{
-		{Content: "テスト前にlintを通す", TriggerDesc: "テスト実行時", Domain: "testing", Scope: "project", ObservationCount: 3, ProjectID: "abc"},
-		{Content: "lintエラーを解消してからテストを走らせる", TriggerDesc: "テスト実行時", Domain: "testing", Scope: "project", ObservationCount: 2, ProjectID: "abc"},
-	} {
-		if _, err := insertInstinct(ctx, conn, params); err != nil {
-			t.Fatalf("insert: %v", err)
-		}
-	}
+	insertLintInstincts(t, ctx, conn)
 
 	judge := func(_ context.Context, _, _ InstinctRow) (DedupDecision, error) {
 		return DedupDecision{Decision: decisionDistinct}, nil
@@ -139,16 +123,7 @@ func TestExecDedup_AllModelScoresAreRecorded(t *testing.T) {
 // execDedupはduplicateと判定されたペアをdedup_decisionsに記録する
 func TestExecDedup_DuplicateDecisionIsRecorded(t *testing.T) {
 	ctx, conn := setupTestDB(t)
-
-	// 意味的に同一だが表現が異なるinstinctを2件挿入
-	for _, params := range []InsertParams{
-		{Content: "テスト前にlintを通す", TriggerDesc: "テスト実行時", Domain: "testing", Scope: "project", ObservationCount: 3, ProjectID: "abc"},
-		{Content: "lintエラーを解消してからテストを走らせる", TriggerDesc: "テスト実行時", Domain: "testing", Scope: "project", ObservationCount: 2, ProjectID: "abc"},
-	} {
-		if _, err := insertInstinct(ctx, conn, params); err != nil {
-			t.Fatalf("insert: %v", err)
-		}
-	}
+	insertLintInstincts(t, ctx, conn)
 
 	judge := func(_ context.Context, _, _ InstinctRow) (DedupDecision, error) {
 		return DedupDecision{Decision: decisionDuplicate, Reasoning: "同じ知見の言い換え"}, nil
