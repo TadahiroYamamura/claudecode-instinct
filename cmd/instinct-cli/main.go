@@ -26,10 +26,15 @@ type setupCmd struct{}
 
 type listCmd struct{}
 
+type showCmd struct {
+	ID string `arg:"" name:"id" help:"Short ID (first 8 chars) of the instinct"`
+}
+
 type cliStruct struct {
 	Setup  setupCmd    `cmd:"" help:"Initialize .instinct-db in current directory"`
 	Insert insertFlags `cmd:"" help:"Insert an instinct"`
 	List   listCmd     `cmd:"" help:"List instincts"`
+	Show   showCmd     `cmd:"" help:"Show full details of an instinct"`
 }
 
 func instinctDbDir(projectDir string) string {
@@ -83,6 +88,13 @@ func dispatch(args []string, cwd string) error {
 		}
 		defer cleanup()
 		return execList(context.Background(), conn, os.Stdout)
+	case "show <id>":
+		conn, _, cleanup, err := openProjectConn(cwd)
+		if err != nil {
+			return err
+		}
+		defer cleanup()
+		return execShow(context.Background(), conn, cli.Show.ID, os.Stdout)
 	default:
 		return fmt.Errorf("unknown command: %s", kctx.Command())
 	}
