@@ -57,7 +57,14 @@ func execList(ctx context.Context, conn *sql.Conn, w io.Writer) error {
 	}
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	for _, r := range rows {
-		fmt.Fprintf(tw, "%s\t%s\n", r.ID[:shortIDLen], truncate(r.Content, contentMaxRunes))
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%d\t%s\n",
+			r.ID[:shortIDLen],
+			truncate(r.Content, contentMaxRunes),
+			r.TriggerDesc,
+			r.Domain,
+			r.ObservationCount,
+			r.Scope,
+		)
 	}
 	return tw.Flush()
 }

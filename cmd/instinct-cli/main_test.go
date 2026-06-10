@@ -56,6 +56,33 @@ func TestCLI_ListCommand_ShowsShortID(t *testing.T) {
 	}
 }
 
+// list出力にtrigger_desc/domain/observation_count/scopeが含まれる
+func TestCLI_ListCommand_PrintsAllFields(t *testing.T) {
+	ctx, conn := setupTestDB(t)
+
+	if _, err := insertInstinct(ctx, conn, InsertParams{
+		Content:          "git push前にテストを実行する",
+		TriggerDesc:      "git push時",
+		Domain:           "git",
+		Scope:            "global",
+		ObservationCount: 7,
+		ProjectID:        "abc123def456",
+	}); err != nil {
+		t.Fatalf("insertInstinct: %v", err)
+	}
+
+	var buf strings.Builder
+	if err := execList(ctx, conn, &buf); err != nil {
+		t.Fatalf("execList: %v", err)
+	}
+	out := buf.String()
+	for _, want := range []string{"git push時", "git", "global", "7"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("expected %q in output, got:\n%s", want, out)
+		}
+	}
+}
+
 // tabwriterによる整形後は生のタブ文字が出力に残らない
 func TestCLI_ListCommand_AlignsColumns(t *testing.T) {
 	ctx, conn := setupTestDB(t)
