@@ -28,14 +28,8 @@ type ObserverConfig struct {
 	ActiveHours  string `yaml:"active_hours"`
 }
 
-type ConfidenceThresholds struct {
-	Low    int `yaml:"low"`
-	Medium int `yaml:"medium"`
-	High   int `yaml:"high"`
-}
-
 type ConfidenceConfig struct {
-	Thresholds ConfidenceThresholds `yaml:"thresholds"`
+	ReviewMin int `yaml:"review_min"`
 }
 
 type DedupConfig struct {

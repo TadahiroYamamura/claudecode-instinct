@@ -33,7 +33,7 @@ func TestReview_ShowsPendingInstincts(t *testing.T) {
 		t.Fatalf("insert on personal: %v", err)
 	}
 
-	cfg := &InstinctConfig{Confidence: ConfidenceConfig{Thresholds: ConfidenceThresholds{Medium: 6}}}
+	cfg := &InstinctConfig{Confidence: ConfidenceConfig{ReviewMin: 6}}
 	var buf strings.Builder
 	if err := execReview(ctx, conn, cfg, &buf); err != nil {
 		t.Fatalf("execReview: %v", err)
@@ -73,7 +73,7 @@ func TestReview_ExcludesBelowMediumThreshold(t *testing.T) {
 		t.Fatalf("insert strong: %v", err)
 	}
 
-	cfg := &InstinctConfig{Confidence: ConfidenceConfig{Thresholds: ConfidenceThresholds{Medium: 6}}}
+	cfg := &InstinctConfig{Confidence: ConfidenceConfig{ReviewMin: 6}}
 	var buf strings.Builder
 	if err := execReview(ctx, conn, cfg, &buf); err != nil {
 		t.Fatalf("execReview: %v", err)
@@ -135,9 +135,10 @@ func TestReview_UsesConfiguredTeamBranch(t *testing.T) {
 	}
 
 	cfg := &InstinctConfig{
-		Confidence: ConfidenceConfig{Thresholds: ConfidenceThresholds{Medium: 6}},
+		Confidence: ConfidenceConfig{ReviewMin: 6},
 		Dolt:       DoltConfig{TeamBranch: "team"},
 	}
+
 	var buf strings.Builder
 	if err := execReview(ctx, conn, cfg, &buf); err != nil {
 		t.Fatalf("execReview: %v", err)

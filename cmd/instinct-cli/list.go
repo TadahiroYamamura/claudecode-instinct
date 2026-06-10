@@ -144,7 +144,7 @@ func execReview(ctx context.Context, conn *sql.Conn, cfg *InstinctConfig, w io.W
 	if teamBranch == "" {
 		teamBranch = defaultTeamBranch
 	}
-	minObs := cfg.Confidence.Thresholds.Medium
+	minObs := cfg.Confidence.ReviewMin
 	if minObs == 0 {
 		minObs = defaultMediumThreshold
 	}

@@ -62,10 +62,7 @@ observer:
   active_hours: "800-2300"
 
 confidence:
-  thresholds:
-    low: 3        # 3-5件 → confidence 0.5
-    medium: 6     # 6-10件 → confidence 0.7
-    high: 11      # 11件以上 → confidence 0.85
+  review_min: 6   # この観察数以上のinstinctのみreviewコマンドに表示する
 
 dedup:
   auto_run_before_push: false
