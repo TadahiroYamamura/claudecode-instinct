@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+const dedupModel = "haiku"
+
 type claudeRunner func(ctx context.Context, model, prompt string) (string, error)
 
 var runClaude claudeRunner = func(ctx context.Context, model, prompt string) (string, error) {
@@ -29,7 +31,7 @@ trigger: %s
 content: %s
 trigger: %s`, a.Content, a.TriggerDesc, b.Content, b.TriggerDesc)
 
-		output, err := runner(ctx, "haiku", prompt)
+		output, err := runner(ctx, dedupModel, prompt)
 		if err != nil {
 			return DedupDecision{}, fmt.Errorf("claude haiku: %w", err)
 		}
