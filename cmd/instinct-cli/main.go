@@ -24,7 +24,9 @@ func openProjectConn(cwd string) (*sql.Conn, string, func(), error) {
 
 type setupCmd struct{}
 
-type listCmd struct{}
+type listCmd struct {
+	Merged bool `kong:"name='merged',help='Include main branch instincts (deduped by ID)'"`
+}
 
 type showCmd struct {
 	ID string `arg:"" name:"id" help:"Short ID (first 8 chars) of the instinct"`
@@ -87,6 +89,9 @@ func dispatch(args []string, cwd string) error {
 			return err
 		}
 		defer cleanup()
+		if cli.List.Merged {
+			return execListMerged(context.Background(), conn, os.Stdout)
+		}
 		return execList(context.Background(), conn, os.Stdout)
 	case "show <id>":
 		conn, _, cleanup, err := openProjectConn(cwd)
