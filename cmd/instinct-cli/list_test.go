@@ -30,60 +30,14 @@ func TestListInstincts_ReturnsInsertedRecord(t *testing.T) {
 	}
 }
 
-func TestListInstincts_ReturnsTriggerDesc(t *testing.T) {
+func TestListInstincts_ReturnsAllFields(t *testing.T) {
 	ctx, conn := setupTestDB(t)
 
 	if err := insertInstinct(ctx, conn, InsertParams{
 		Content:          "コミット前にlintを実行する",
 		TriggerDesc:      "git commit時",
 		Domain:           "git",
-		Scope:            "project",
-		ObservationCount: 3,
-		ProjectID:        "abc123def456",
-	}); err != nil {
-		t.Fatalf("insertInstinct: %v", err)
-	}
-
-	rows, err := listInstincts(ctx, conn)
-	if err != nil {
-		t.Fatalf("listInstincts: %v", err)
-	}
-	if rows[0].TriggerDesc != "git commit時" {
-		t.Errorf("trigger_desc = %q", rows[0].TriggerDesc)
-	}
-}
-
-func TestListInstincts_ReturnsDomain(t *testing.T) {
-	ctx, conn := setupTestDB(t)
-
-	if err := insertInstinct(ctx, conn, InsertParams{
-		Content:          "コミット前にlintを実行する",
-		TriggerDesc:      "git commit時",
-		Domain:           "git",
-		Scope:            "project",
-		ObservationCount: 3,
-		ProjectID:        "abc123def456",
-	}); err != nil {
-		t.Fatalf("insertInstinct: %v", err)
-	}
-
-	rows, err := listInstincts(ctx, conn)
-	if err != nil {
-		t.Fatalf("listInstincts: %v", err)
-	}
-	if rows[0].Domain != "git" {
-		t.Errorf("domain = %q", rows[0].Domain)
-	}
-}
-
-func TestListInstincts_ReturnsObservationCount(t *testing.T) {
-	ctx, conn := setupTestDB(t)
-
-	if err := insertInstinct(ctx, conn, InsertParams{
-		Content:          "コミット前にlintを実行する",
-		TriggerDesc:      "git commit時",
-		Domain:           "git",
-		Scope:            "project",
+		Scope:            "global",
 		ObservationCount: 7,
 		ProjectID:        "abc123def456",
 	}); err != nil {
@@ -94,53 +48,20 @@ func TestListInstincts_ReturnsObservationCount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("listInstincts: %v", err)
 	}
-	if rows[0].ObservationCount != 7 {
-		t.Errorf("observation_count = %d", rows[0].ObservationCount)
+	r := rows[0]
+	if r.TriggerDesc != "git commit時" {
+		t.Errorf("trigger_desc = %q", r.TriggerDesc)
 	}
-}
-
-func TestListInstincts_ReturnsScope(t *testing.T) {
-	ctx, conn := setupTestDB(t)
-
-	if err := insertInstinct(ctx, conn, InsertParams{
-		Content:          "コミット前にlintを実行する",
-		TriggerDesc:      "git commit時",
-		Domain:           "git",
-		Scope:            "global",
-		ObservationCount: 3,
-		ProjectID:        "abc123def456",
-	}); err != nil {
-		t.Fatalf("insertInstinct: %v", err)
+	if r.Domain != "git" {
+		t.Errorf("domain = %q", r.Domain)
 	}
-
-	rows, err := listInstincts(ctx, conn)
-	if err != nil {
-		t.Fatalf("listInstincts: %v", err)
+	if r.ObservationCount != 7 {
+		t.Errorf("observation_count = %d", r.ObservationCount)
 	}
-	if rows[0].Scope != "global" {
-		t.Errorf("scope = %q", rows[0].Scope)
+	if r.Scope != "global" {
+		t.Errorf("scope = %q", r.Scope)
 	}
-}
-
-func TestListInstincts_ReturnsCreatedAt(t *testing.T) {
-	ctx, conn := setupTestDB(t)
-
-	if err := insertInstinct(ctx, conn, InsertParams{
-		Content:          "コミット前にlintを実行する",
-		TriggerDesc:      "git commit時",
-		Domain:           "git",
-		Scope:            "project",
-		ObservationCount: 3,
-		ProjectID:        "abc123def456",
-	}); err != nil {
-		t.Fatalf("insertInstinct: %v", err)
-	}
-
-	rows, err := listInstincts(ctx, conn)
-	if err != nil {
-		t.Fatalf("listInstincts: %v", err)
-	}
-	if rows[0].CreatedAt.IsZero() {
+	if r.CreatedAt.IsZero() {
 		t.Error("created_at is zero")
 	}
 }
