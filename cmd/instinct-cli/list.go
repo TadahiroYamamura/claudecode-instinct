@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
+	"text/tabwriter"
 	"time"
 )
 
@@ -54,8 +55,9 @@ func execList(ctx context.Context, conn *sql.Conn, w io.Writer) error {
 	if err != nil {
 		return err
 	}
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	for _, r := range rows {
-		fmt.Fprintf(w, "%s\t%s\n", r.ID[:shortIDLen], truncate(r.Content, contentMaxRunes))
+		fmt.Fprintf(tw, "%s\t%s\n", r.ID[:shortIDLen], truncate(r.Content, contentMaxRunes))
 	}
-	return nil
+	return tw.Flush()
 }
