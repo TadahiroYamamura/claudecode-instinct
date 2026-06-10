@@ -36,13 +36,21 @@ func listInstincts(ctx context.Context, conn *sql.Conn) ([]InstinctRow, error) {
 	return result, rows.Err()
 }
 
+func truncate(s string, n int) string {
+	runes := []rune(s)
+	if len(runes) <= n {
+		return s
+	}
+	return string(runes[:n]) + "..."
+}
+
 func execList(ctx context.Context, conn *sql.Conn, w io.Writer) error {
 	rows, err := listInstincts(ctx, conn)
 	if err != nil {
 		return err
 	}
 	for _, r := range rows {
-		fmt.Fprintf(w, "%s\t%s\n", r.ID[:8], r.Content)
+		fmt.Fprintf(w, "%s\t%s\n", r.ID[:8], truncate(r.Content, 40))
 	}
 	return nil
 }
