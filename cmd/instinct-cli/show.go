@@ -19,11 +19,12 @@ func execShow(ctx context.Context, conn *sql.Conn, shortID string, w io.Writer) 
 	if err != nil {
 		return fmt.Errorf("show instinct: %w", err)
 	}
-	fmt.Fprintf(w, "id:      %s\n", r.ID)
-	fmt.Fprintf(w, "content: %s\n", r.Content)
-	fmt.Fprintf(w, "trigger: %s\n", r.TriggerDesc)
-	fmt.Fprintf(w, "domain:  %s\n", r.Domain)
-	fmt.Fprintf(w, "obs:     %d\n", r.ObservationCount)
-	fmt.Fprintf(w, "scope:   %s\n", r.Scope)
+	fmt.Fprintf(w, "%s\n\n", r.Content)
+	fmt.Fprintf(w, "[trigger]\n%s\n\n", r.TriggerDesc)
+	fmt.Fprintf(w, "[meta]\n")
+	fmt.Fprintf(w, "id: %s\n", r.ID)
+	fmt.Fprintf(w, "domain: %s\n", r.Domain)
+	fmt.Fprintf(w, "obs: %d\n", r.ObservationCount)
+	fmt.Fprintf(w, "scope: %s\n", r.Scope)
 	return nil
 }
