@@ -21,13 +21,12 @@ func execPush(ctx context.Context, conn *sql.Conn, cfg *InstinctConfig, push dol
 	// 既存リモートがあってもエラーにしない
 	conn.ExecContext(ctx, "CALL dolt_remote('add', '--ref', ?, 'origin', ?)", //nolint
 		cfg.Dolt.Refs, cfg.Dolt.RemoteURL)
-	branch := cfg.Dolt.Branch
-	if branch == "" {
-		branch = "main"
+	if cfg.Dolt.Branch == "" {
+		return fmt.Errorf("dolt.branch is not configured in config.yml")
 	}
-	if err := push(ctx, conn, "origin", branch); err != nil {
+	if err := push(ctx, conn, "origin", cfg.Dolt.Branch); err != nil {
 		return fmt.Errorf("push: %w", err)
 	}
-	fmt.Fprintf(w, "pushed %s to %s\n", branch, cfg.Dolt.RemoteURL)
+	fmt.Fprintf(w, "pushed %s to %s\n", cfg.Dolt.Branch, cfg.Dolt.RemoteURL)
 	return nil
 }
