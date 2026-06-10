@@ -32,16 +32,16 @@ func runSetup(projectDir string, in io.Reader, out io.Writer) error {
 	defaultBranch, _ := gitConfigValue("user.name")
 	defaultRemote, _ := gitOutput(projectDir, "remote", "get-url", "origin")
 
-	scanner := bufio.NewReader(in)
-	branch, err := promptWithDefault(scanner, out, "Branch", defaultBranch)
+	reader := bufio.NewReader(in)
+	branch, err := promptWithDefault(reader, out, "Branch", defaultBranch)
 	if err != nil {
 		return err
 	}
-	teamBranch, err := promptWithDefault(scanner, out, "Team branch", "main")
+	teamBranch, err := promptWithDefault(reader, out, "Team branch", "main")
 	if err != nil {
 		return err
 	}
-	remoteURL, err := promptWithDefault(scanner, out, "Remote URL", defaultRemote)
+	remoteURL, err := promptWithDefault(reader, out, "Remote URL", defaultRemote)
 	if err != nil {
 		return err
 	}
