@@ -43,15 +43,20 @@ func execInsert(ctx context.Context, conn *sql.Conn, f insertFlags, projectIDFn 
 	if err != nil {
 		return fmt.Errorf("project id: %w", err)
 	}
-	_, err = insertInstinct(ctx, conn, InsertParams{
+	if _, err = insertInstinct(ctx, conn, InsertParams{
 		Content:          f.Content,
 		TriggerDesc:      f.Trigger,
 		Domain:           f.Domain,
 		Scope:            f.Scope,
 		ObservationCount: f.Count,
 		ProjectID:        projectID,
-	})
-	return err
+	}); err != nil {
+		return err
+	}
+	if _, err := conn.ExecContext(ctx, "CALL dolt_commit('-Am', 'insert: add instinct')"); err != nil {
+		return fmt.Errorf("dolt_commit: %w", err)
+	}
+	return nil
 }
 
 func insertInstinct(ctx context.Context, conn *sql.Conn, p InsertParams) (string, error) {
