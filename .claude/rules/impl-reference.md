@@ -87,4 +87,4 @@ dolt:
 | `instinct-cli dedup` | Haiku によるブランチ内 dedup（dedup_decisions に記録 + commit） |
 | `instinct-cli review` | main にない新規 instinct 一覧（レビュー待ちキュー） |
 | `instinct-cli push` | 個人ブランチをリモートへ push（branch 未設定はエラー、main へのフォールバックなし） |
-| `instinct-cli pull` | CALL dolt_pull() |
+| `instinct-cli pull` | チームブランチ（team_branch）をリモートから取得 |
