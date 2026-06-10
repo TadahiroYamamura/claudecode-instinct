@@ -18,13 +18,12 @@ func TestExecPush_RegistersRemote(t *testing.T) {
 	cfg := &InstinctConfig{
 		Dolt: DoltConfig{
 			Refs:      "refs/dolt/myproject/",
-			Branch:    "tadahiro",
 			RemoteURL: "git@github.com:org/repo.git",
 		},
 	}
 
 	var buf strings.Builder
-	_ = execPush(ctx, conn, cfg, nopPush, &buf)
+	_ = execPush(ctx, conn, cfg, "tadahiro", nopPush, &buf)
 
 	var count int
 	if err := conn.QueryRowContext(ctx,
@@ -44,7 +43,6 @@ func TestExecPush_CallsPushWithCorrectArgs(t *testing.T) {
 	cfg := &InstinctConfig{
 		Dolt: DoltConfig{
 			Refs:      "refs/dolt/myproject/",
-			Branch:    "tadahiro",
 			RemoteURL: "git@github.com:org/repo.git",
 		},
 	}
@@ -56,14 +54,14 @@ func TestExecPush_CallsPushWithCorrectArgs(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	if err := execPush(ctx, conn, cfg, capturePush, &buf); err != nil {
+	if err := execPush(ctx, conn, cfg, "tadahiro", capturePush, &buf); err != nil {
 		t.Fatalf("execPush: %v", err)
 	}
 	if gotRemote != "origin" {
 		t.Errorf("expected remote %q, got %q", "origin", gotRemote)
 	}
-	if gotBranch != cfg.Dolt.Branch {
-		t.Errorf("expected branch %q, got %q", cfg.Dolt.Branch, gotBranch)
+	if gotBranch != "tadahiro" {
+		t.Errorf("expected branch %q, got %q", "tadahiro", gotBranch)
 	}
 }
 
@@ -74,12 +72,11 @@ func TestExecPush_FailsWhenBranchEmpty(t *testing.T) {
 	cfg := &InstinctConfig{
 		Dolt: DoltConfig{
 			RemoteURL: "git@github.com:org/repo.git",
-			// Branch は空
 		},
 	}
 
 	var buf strings.Builder
-	if err := execPush(ctx, conn, cfg, nopPush, &buf); err == nil {
+	if err := execPush(ctx, conn, cfg, "", nopPush, &buf); err == nil {
 		t.Fatal("expected error when branch is empty, got nil")
 	}
 }
@@ -89,7 +86,7 @@ func TestExecPush_FailsWhenRemoteURLEmpty(t *testing.T) {
 	ctx, conn := setupTestDB(t)
 
 	var buf strings.Builder
-	err := execPush(ctx, conn, &InstinctConfig{}, nopPush, &buf)
+	err := execPush(ctx, conn, &InstinctConfig{}, "tadahiro", nopPush, &buf)
 	if err == nil {
 		t.Fatal("expected error when remote_url is empty, got nil")
 	}

@@ -156,7 +156,11 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 		if err != nil {
 			return err
 		}
-		return execPush(context.Background(), conn, cfg, defaultDoltPush, out)
+		userCfg, err := loadUserConfig(instinctDbDir(projectDir))
+		if err != nil {
+			return err
+		}
+		return execPush(context.Background(), conn, cfg, userCfg.Dolt.Branch, defaultDoltPush, out)
 	case "pull":
 		conn, projectDir, cleanup, err := openProjectConn(cwd)
 		if err != nil {
@@ -167,7 +171,11 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 		if err != nil {
 			return err
 		}
-		return execPull(context.Background(), conn, cfg, defaultDoltPull, out)
+		userCfg, err := loadUserConfig(instinctDbDir(projectDir))
+		if err != nil {
+			return err
+		}
+		return execPull(context.Background(), conn, cfg, userCfg.Dolt.Branch, defaultDoltPull, out)
 	default:
 		return fmt.Errorf("unknown command: %s", kctx.Command())
 	}

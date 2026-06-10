@@ -10,7 +10,6 @@ import (
 
 type DoltConfig struct {
 	Refs       string `yaml:"refs"`
-	Branch     string `yaml:"branch"`
 	TeamBranch string `yaml:"team_branch"`
 	RemoteURL  string `yaml:"remote_url"`
 }
