@@ -22,6 +22,52 @@ func TestExecDedup_EmptyInstinctsReportsZeroPairs(t *testing.T) {
 	}
 }
 
+// execDedupはduplicateと判定されたinstinctをマージして重複を1件に削除する
+func TestExecDedup_DuplicateMergesObservationCountAndDeletesOne(t *testing.T) {
+	ctx, conn := setupTestDB(t)
+
+	// 表現は異なるが意味的に同一なinstinctを2件挿入
+	if _, err := insertInstinct(ctx, conn, InsertParams{
+		Content: "テスト前にlintを通す", TriggerDesc: "テスト実行時",
+		Domain: "testing", Scope: "project", ObservationCount: 3, ProjectID: "abc",
+	}); err != nil {
+		t.Fatalf("insert A: %v", err)
+	}
+	if _, err := insertInstinct(ctx, conn, InsertParams{
+		Content: "lintエラーを解消してからテストを走らせる", TriggerDesc: "テスト実行時",
+		Domain: "testing", Scope: "project", ObservationCount: 2, ProjectID: "abc",
+	}); err != nil {
+		t.Fatalf("insert B: %v", err)
+	}
+
+	judge := func(_ context.Context, _, _ InstinctRow) (DedupDecision, error) {
+		return DedupDecision{Decision: "duplicate", Reasoning: "同じ知見の言い換え", Similarity: 0.85}, nil
+	}
+
+	var buf strings.Builder
+	if err := execDedup(ctx, conn, judge, &buf); err != nil {
+		t.Fatalf("execDedup: %v", err)
+	}
+
+	var remaining int
+	if err := conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM instincts").Scan(&remaining); err != nil {
+		t.Fatalf("count instincts: %v", err)
+	}
+	if remaining != 1 {
+		t.Errorf("expected 1 instinct after dedup, got %d", remaining)
+	}
+
+	var obsCount int
+	if err := conn.QueryRowContext(ctx,
+		"SELECT observation_count FROM instincts",
+	).Scan(&obsCount); err != nil {
+		t.Fatalf("query observation_count: %v", err)
+	}
+	if obsCount != 5 {
+		t.Errorf("expected merged observation_count=5 (3+2), got %d", obsCount)
+	}
+}
+
 // execDedupはduplicateと判定されたペアをdedup_decisionsに記録する
 func TestExecDedup_DuplicateDecisionIsRecorded(t *testing.T) {
 	ctx, conn := setupTestDB(t)

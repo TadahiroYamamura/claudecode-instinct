@@ -27,6 +27,17 @@ func insertDedupDecision(ctx context.Context, conn *sql.Conn, a, b InstinctRow, 
 	return err
 }
 
+func mergeAndDelete(ctx context.Context, conn *sql.Conn, winner, loser InstinctRow) error {
+	if _, err := conn.ExecContext(ctx,
+		"UPDATE instincts SET observation_count = observation_count + ? WHERE id = ?",
+		loser.ObservationCount, winner.ID,
+	); err != nil {
+		return err
+	}
+	_, err := conn.ExecContext(ctx, "DELETE FROM instincts WHERE id = ?", loser.ID)
+	return err
+}
+
 func execDedup(ctx context.Context, conn *sql.Conn, judge DedupJudge, w io.Writer) error {
 	instincts, err := listInstincts(ctx, conn)
 	if err != nil {
@@ -44,7 +55,19 @@ func execDedup(ctx context.Context, conn *sql.Conn, judge DedupJudge, w io.Write
 			if err := insertDedupDecision(ctx, conn, a, b, d); err != nil {
 				return fmt.Errorf("record decision: %w", err)
 			}
+			if d.Decision == "duplicate" {
+				if err := mergeAndDelete(ctx, conn, a, b); err != nil {
+					return fmt.Errorf("merge duplicate (%s, %s): %w", a.ID, b.ID, err)
+				}
+			}
 			pairs++
+		}
+	}
+
+	if pairs > 0 {
+		msg := fmt.Sprintf("dedup: %d pairs checked", pairs)
+		if _, err := conn.ExecContext(ctx, "CALL dolt_commit('-Am', ?)", msg); err != nil {
+			return fmt.Errorf("dolt_commit: %w", err)
 		}
 	}
 
