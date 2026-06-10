@@ -161,9 +161,9 @@ func printReviewTUI(w io.Writer, rows []InstinctRow, cursor int, selected []bool
 		if i == cursor {
 			arrow = "> "
 		}
-		fmt.Fprintf(w, "%s%s %s  %-38s %-12s %3d  %s\r\n",
+		fmt.Fprintf(w, "%s%s %s  %-38s %-20s %-12s %3d  %s\r\n",
 			arrow, check, r.ID[:shortIDLen],
-			truncate(r.Content, 38), r.Domain, r.ObservationCount, r.Scope,
+			truncate(r.Content, 38), truncate(r.TriggerDesc, 20), r.Domain, r.ObservationCount, r.Scope,
 		)
 	}
 }
