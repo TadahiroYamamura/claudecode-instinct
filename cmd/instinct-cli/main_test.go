@@ -80,7 +80,8 @@ func TestDispatch_NoArgs_ReturnsUsageErrorNotProjectDirError(t *testing.T) {
 // dispatchはdedupサブコマンドをexecDedupにルーティングする（instinctが0件なのでjudgeは呼ばれない）
 func TestDispatch_DedupCommand_ZeroPairsWhenEmpty(t *testing.T) {
 	dir := t.TempDir()
-	if err := dispatch([]string{"setup", "--yes"}, dir, nil, io.Discard); err != nil {
+	gitInitWithRemote(t, dir)
+	if err := execSetup(dir, true, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
 		t.Fatalf("setup: %v", err)
 	}
 
@@ -93,11 +94,12 @@ func TestDispatch_DedupCommand_ZeroPairsWhenEmpty(t *testing.T) {
 	}
 }
 
-// dispatch(["setup"], dir)が.instinct-db/data/を作成する
+// dispatch(["setup"], dir)が.instinct-db/data/を作成する（initパス）
 func TestCLI_SetupCommand_CreatesInstinctDb(t *testing.T) {
 	dir := t.TempDir()
+	gitInitWithRemote(t, dir)
 
-	if err := dispatch([]string{"setup", "--yes"}, dir, nil, io.Discard); err != nil {
+	if err := execSetup(dir, true, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
 		t.Fatalf("dispatch: %v", err)
 	}
 
