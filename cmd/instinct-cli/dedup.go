@@ -9,6 +9,11 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	decisionDuplicate = "duplicate"
+	decisionDistinct  = "distinct"
+)
+
 type DedupDecision struct {
 	Decision   string
 	Reasoning  string
@@ -55,7 +60,7 @@ func execDedup(ctx context.Context, conn *sql.Conn, judge DedupJudge, w io.Write
 			if err := insertDedupDecision(ctx, conn, a, b, d); err != nil {
 				return fmt.Errorf("record decision: %w", err)
 			}
-			if d.Decision == "duplicate" {
+			if d.Decision == decisionDuplicate {
 				if err := mergeAndDelete(ctx, conn, a, b); err != nil {
 					return fmt.Errorf("merge duplicate (%s, %s): %w", a.ID, b.ID, err)
 				}

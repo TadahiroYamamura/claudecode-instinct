@@ -41,7 +41,7 @@ func TestExecDedup_DuplicateMergesObservationCountAndDeletesOne(t *testing.T) {
 	}
 
 	judge := func(_ context.Context, _, _ InstinctRow) (DedupDecision, error) {
-		return DedupDecision{Decision: "duplicate", Reasoning: "同じ知見の言い換え", Similarity: 0.85}, nil
+		return DedupDecision{Decision: decisionDuplicate, Reasoning: "同じ知見の言い換え", Similarity: 0.85}, nil
 	}
 
 	var buf strings.Builder
@@ -83,7 +83,7 @@ func TestExecDedup_DuplicateDecisionIsRecorded(t *testing.T) {
 	}
 
 	judge := func(_ context.Context, _, _ InstinctRow) (DedupDecision, error) {
-		return DedupDecision{Decision: "duplicate", Reasoning: "同じ知見の言い換え", Similarity: 0.85}, nil
+		return DedupDecision{Decision: decisionDuplicate, Reasoning: "同じ知見の言い換え", Similarity: 0.85}, nil
 	}
 
 	var buf strings.Builder
@@ -93,7 +93,7 @@ func TestExecDedup_DuplicateDecisionIsRecorded(t *testing.T) {
 
 	var count int
 	if err := conn.QueryRowContext(ctx,
-		"SELECT COUNT(*) FROM dedup_decisions WHERE decision = 'duplicate'",
+		"SELECT COUNT(*) FROM dedup_decisions WHERE decision = ?", decisionDuplicate,
 	).Scan(&count); err != nil {
 		t.Fatalf("query dedup_decisions: %v", err)
 	}
