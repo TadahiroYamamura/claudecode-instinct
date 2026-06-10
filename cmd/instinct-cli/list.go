@@ -111,15 +111,18 @@ func execList(ctx context.Context, conn *sql.Conn, w io.Writer) error {
 	return printInstincts(rows, w)
 }
 
-func listReviewInstincts(ctx context.Context, conn *sql.Conn, teamBranch string) ([]InstinctRow, error) {
+const defaultMediumThreshold = 6
+
+func listReviewInstincts(ctx context.Context, conn *sql.Conn, teamBranch string, minObservations int) ([]InstinctRow, error) {
 	// AS OF はプレースホルダー非対応のため Sprintf で埋め込む。
 	// teamBranch は config.yml 由来（ユーザー入力ではない）。
 	query := fmt.Sprintf(`
 		SELECT id, content, trigger_desc, domain, observation_count, scope, created_at
 		FROM instincts
 		WHERE id NOT IN (SELECT id FROM instincts AS OF '%s')
+		  AND observation_count >= ?
 		ORDER BY created_at DESC`, teamBranch)
-	rows, err := conn.QueryContext(ctx, query)
+	rows, err := conn.QueryContext(ctx, query, minObservations)
 	if err != nil {
 		return nil, fmt.Errorf("list review instincts: %w", err)
 	}
@@ -141,7 +144,11 @@ func execReview(ctx context.Context, conn *sql.Conn, cfg *InstinctConfig, w io.W
 	if teamBranch == "" {
 		teamBranch = defaultTeamBranch
 	}
-	rows, err := listReviewInstincts(ctx, conn, teamBranch)
+	minObs := cfg.Confidence.Thresholds.Medium
+	if minObs == 0 {
+		minObs = defaultMediumThreshold
+	}
+	rows, err := listReviewInstincts(ctx, conn, teamBranch, minObs)
 	if err != nil {
 		return err
 	}

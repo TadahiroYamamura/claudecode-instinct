@@ -25,16 +25,17 @@ func TestReview_ShowsPendingInstincts(t *testing.T) {
 		t.Fatalf("checkout personal: %v", err)
 	}
 
-	// personal ブランチのみに新規レコードを追加
+	// personal ブランチのみに新規レコードを追加（medium 閾値以上）
 	if _, err := insertInstinct(ctx, conn, InsertParams{
 		Content: "pending review instinct", TriggerDesc: "sometimes",
-		Domain: "testing", Scope: "project", ObservationCount: 2, ProjectID: "abc123def456",
+		Domain: "testing", Scope: "project", ObservationCount: 6, ProjectID: "abc123def456",
 	}); err != nil {
 		t.Fatalf("insert on personal: %v", err)
 	}
 
+	cfg := &InstinctConfig{Confidence: ConfidenceConfig{Thresholds: ConfidenceThresholds{Medium: 6}}}
 	var buf strings.Builder
-	if err := execReview(ctx, conn, &InstinctConfig{}, &buf); err != nil {
+	if err := execReview(ctx, conn, cfg, &buf); err != nil {
 		t.Fatalf("execReview: %v", err)
 	}
 	out := buf.String()
@@ -43,6 +44,46 @@ func TestReview_ShowsPendingInstincts(t *testing.T) {
 	}
 	if strings.Contains(out, "already on main") {
 		t.Error("already-merged instinct should not appear in review output")
+	}
+}
+
+// review は observation_count が medium 閾値未満の instinct を除外する
+func TestReview_ExcludesBelowMediumThreshold(t *testing.T) {
+	ctx, conn := setupTestDB(t)
+
+	if _, err := conn.ExecContext(ctx, `CALL dolt_commit('-Am', 'test: init schema')`); err != nil {
+		t.Fatalf("commit: %v", err)
+	}
+	if _, err := conn.ExecContext(ctx, `CALL dolt_checkout('-b', 'personal')`); err != nil {
+		t.Fatalf("checkout: %v", err)
+	}
+
+	// medium=6 未満（観察が少なく仮説段階）
+	if _, err := insertInstinct(ctx, conn, InsertParams{
+		Content: "tentative instinct", TriggerDesc: "rarely",
+		Domain: "testing", Scope: "project", ObservationCount: 3, ProjectID: "abc123def456",
+	}); err != nil {
+		t.Fatalf("insert tentative: %v", err)
+	}
+	// medium=6 以上（strong → レビュー対象）
+	if _, err := insertInstinct(ctx, conn, InsertParams{
+		Content: "strong instinct", TriggerDesc: "often",
+		Domain: "testing", Scope: "project", ObservationCount: 6, ProjectID: "abc123def456",
+	}); err != nil {
+		t.Fatalf("insert strong: %v", err)
+	}
+
+	cfg := &InstinctConfig{Confidence: ConfidenceConfig{Thresholds: ConfidenceThresholds{Medium: 6}}}
+	var buf strings.Builder
+	if err := execReview(ctx, conn, cfg, &buf); err != nil {
+		t.Fatalf("execReview: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "strong instinct") {
+		t.Error("expected strong instinct (obs>=6) in review output")
+	}
+	if strings.Contains(out, "tentative instinct") {
+		t.Error("tentative instinct (obs<6) should be excluded from review")
 	}
 }
 
@@ -88,13 +129,17 @@ func TestReview_UsesConfiguredTeamBranch(t *testing.T) {
 
 	if _, err := insertInstinct(ctx, conn, InsertParams{
 		Content: "personal only", TriggerDesc: "sometimes",
-		Domain: "testing", Scope: "project", ObservationCount: 1, ProjectID: "abc123def456",
+		Domain: "testing", Scope: "project", ObservationCount: 6, ProjectID: "abc123def456",
 	}); err != nil {
 		t.Fatalf("insert on personal: %v", err)
 	}
 
+	cfg := &InstinctConfig{
+		Confidence: ConfidenceConfig{Thresholds: ConfidenceThresholds{Medium: 6}},
+		Dolt:       DoltConfig{TeamBranch: "team"},
+	}
 	var buf strings.Builder
-	if err := execReview(ctx, conn, &InstinctConfig{Dolt: DoltConfig{TeamBranch: "team"}}, &buf); err != nil {
+	if err := execReview(ctx, conn, cfg, &buf); err != nil {
 		t.Fatalf("execReview: %v", err)
 	}
 	if !strings.Contains(buf.String(), "personal only") {
