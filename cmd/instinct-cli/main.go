@@ -35,11 +35,16 @@ type showCmd struct {
 	ID string `arg:"" name:"id" help:"Short ID (first 8 chars) of the instinct"`
 }
 
+type commitCmd struct {
+	Message string `kong:"name='message',short='m',default='observer: batch commit',help='Commit message'"`
+}
+
 type cliStruct struct {
 	Setup  setupCmd    `cmd:"" help:"Initialize .instinct-db in current directory"`
 	Insert insertFlags `cmd:"" help:"Insert an instinct"`
 	List   listCmd     `cmd:"" help:"List instincts"`
 	Show   showCmd     `cmd:"" help:"Show full details of an instinct"`
+	Commit commitCmd   `cmd:"" help:"Commit working set to Dolt history"`
 }
 
 func instinctDbDir(projectDir string) string {
@@ -107,6 +112,13 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 		}
 		defer cleanup()
 		return execShow(context.Background(), conn, cli.Show.ID, os.Stdout)
+	case "commit":
+		conn, _, cleanup, err := openProjectConn(cwd)
+		if err != nil {
+			return err
+		}
+		defer cleanup()
+		return execCommit(context.Background(), conn, cli.Commit.Message)
 	default:
 		return fmt.Errorf("unknown command: %s", kctx.Command())
 	}
