@@ -121,3 +121,26 @@ func TestListInstincts_ReturnsScope(t *testing.T) {
 		t.Errorf("scope = %q", rows[0].Scope)
 	}
 }
+
+func TestListInstincts_ReturnsCreatedAt(t *testing.T) {
+	ctx, conn := setupTestDB(t)
+
+	if err := insertInstinct(ctx, conn, InsertParams{
+		Content:          "コミット前にlintを実行する",
+		TriggerDesc:      "git commit時",
+		Domain:           "git",
+		Scope:            "project",
+		ObservationCount: 3,
+		ProjectID:        "abc123def456",
+	}); err != nil {
+		t.Fatalf("insertInstinct: %v", err)
+	}
+
+	rows, err := listInstincts(ctx, conn)
+	if err != nil {
+		t.Fatalf("listInstincts: %v", err)
+	}
+	if rows[0].CreatedAt.IsZero() {
+		t.Error("created_at is zero")
+	}
+}
