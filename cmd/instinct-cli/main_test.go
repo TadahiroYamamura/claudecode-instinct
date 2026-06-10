@@ -8,6 +8,30 @@ import (
 	"testing"
 )
 
+
+// in-treeワークツリーからgit境界を越えて親の.instinct-dbを誤発見しない
+func TestFindProjectDirFrom_DoesNotCrossIntoParentWorktree(t *testing.T) {
+	mainDir := t.TempDir()
+	mustRun(t, "git", "-C", mainDir, "init")
+	mustRun(t, "git", "-C", mainDir, "config", "user.email", "test@test.com")
+	mustRun(t, "git", "-C", mainDir, "config", "user.name", "Test")
+	mustRun(t, "git", "-C", mainDir, "commit", "--allow-empty", "-m", "init")
+
+	if err := os.MkdirAll(filepath.Join(mainDir, ".instinct-db"), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	// in-treeワークツリー: mainDir 配下に作成
+	worktreeDir := filepath.Join(mainDir, "worktrees", "feature")
+	mustRun(t, "git", "-C", mainDir, "worktree", "add", "-b", "feature", worktreeDir)
+
+	// worktree 内から探索しても親の .instinct-db は見えてはいけない
+	_, err := findProjectDirFrom(worktreeDir)
+	if err == nil {
+		t.Error("should not find parent worktree's .instinct-db across git boundary")
+	}
+}
+
 // tabwriterによる整形後は生のタブ文字が出力に残らない
 func TestCLI_ListCommand_AlignsColumns(t *testing.T) {
 	ctx, conn := setupTestDB(t)

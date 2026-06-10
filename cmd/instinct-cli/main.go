@@ -75,17 +75,26 @@ func instinctDataDir(projectDir string) string {
 }
 
 func findProjectDirFrom(startDir string) (string, error) {
+	// git rev-parse --show-toplevel はワークツリーごとに異なるルートを返す。
+	// in-treeワークツリーが親ワークツリーの .instinct-db を誤発見しないよう
+	// このルートを超えた探索を止める。
+	gitRoot, _ := gitOutput(startDir, "rev-parse", "--show-toplevel")
+
 	dir := startDir
 	for {
 		if _, err := os.Stat(instinctDbDir(dir)); err == nil {
 			return dir, nil
 		}
+		if gitRoot != "" && dir == gitRoot {
+			break
+		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return "", fmt.Errorf(".instinct-db not found in any parent directory")
+			break
 		}
 		dir = parent
 	}
+	return "", fmt.Errorf(".instinct-db not found in any parent directory")
 }
 
 func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
