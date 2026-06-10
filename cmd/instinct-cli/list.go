@@ -110,3 +110,41 @@ func execList(ctx context.Context, conn *sql.Conn, w io.Writer) error {
 	}
 	return printInstincts(rows, w)
 }
+
+func listReviewInstincts(ctx context.Context, conn *sql.Conn, teamBranch string) ([]InstinctRow, error) {
+	// AS OF はプレースホルダー非対応のため Sprintf で埋め込む。
+	// teamBranch は config.yml 由来（ユーザー入力ではない）。
+	query := fmt.Sprintf(`
+		SELECT id, content, trigger_desc, domain, observation_count, scope, created_at
+		FROM instincts
+		WHERE id NOT IN (SELECT id FROM instincts AS OF '%s')
+		ORDER BY created_at DESC`, teamBranch)
+	rows, err := conn.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("list review instincts: %w", err)
+	}
+	defer rows.Close()
+
+	var result []InstinctRow
+	for rows.Next() {
+		var r InstinctRow
+		if err := rows.Scan(&r.ID, &r.Content, &r.TriggerDesc, &r.Domain, &r.ObservationCount, &r.Scope, &r.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan: %w", err)
+		}
+		result = append(result, r)
+	}
+	return result, rows.Err()
+}
+
+func execReview(ctx context.Context, conn *sql.Conn, cfg *InstinctConfig, w io.Writer) error {
+	teamBranch := cfg.Dolt.TeamBranch
+	if teamBranch == "" {
+		teamBranch = defaultTeamBranch
+	}
+	rows, err := listReviewInstincts(ctx, conn, teamBranch)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(w, "%d instinct(s) pending review (not yet on %s)\n", len(rows), teamBranch)
+	return printInstincts(rows, w)
+}

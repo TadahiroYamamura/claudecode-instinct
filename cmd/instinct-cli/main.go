@@ -55,6 +55,7 @@ type commitCmd struct {
 }
 
 type dedupCmd struct{}
+type reviewCmd struct{}
 type pushCmd struct{}
 type pullCmd struct{}
 
@@ -65,6 +66,7 @@ type cliStruct struct {
 	Show   showCmd     `cmd:"" help:"Show full details of an instinct"`
 	Commit commitCmd   `cmd:"" help:"Commit working set to Dolt history"`
 	Dedup  dedupCmd    `cmd:"" help:"Detect and merge duplicate instincts using Haiku"`
+	Review reviewCmd   `cmd:"" help:"List instincts pending review (not yet on team branch)"`
 	Push   pushCmd     `cmd:"" help:"Push personal branch to remote repository"`
 	Pull   pullCmd     `cmd:"" help:"Pull team branch from remote repository"`
 }
@@ -158,6 +160,17 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 		defer cleanup()
 		cfg, _ := loadConfig(instinctDbDir(projectDir))
 		return execDedup(context.Background(), conn, haikuJudge, similarityThresholdFromConfig(cfg), out)
+	case "review":
+		conn, projectDir, cleanup, err := openProjectConn(cwd)
+		if err != nil {
+			return err
+		}
+		defer cleanup()
+		cfg, _ := loadConfig(instinctDbDir(projectDir))
+		if cfg == nil {
+			cfg = &InstinctConfig{}
+		}
+		return execReview(context.Background(), conn, cfg, out)
 	case "push":
 		conn, projectDir, cleanup, err := openProjectConn(cwd)
 		if err != nil {
