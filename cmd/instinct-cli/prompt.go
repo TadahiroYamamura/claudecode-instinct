@@ -7,9 +7,9 @@ import (
 	"strings"
 )
 
-func promptWithDefault(r io.Reader, w io.Writer, label, defaultValue string) (string, error) {
+func promptWithDefault(r *bufio.Reader, w io.Writer, label, defaultValue string) (string, error) {
 	fmt.Fprintf(w, "%s [%s]: ", label, defaultValue)
-	line, err := bufio.NewReader(r).ReadString('\n')
+	line, err := r.ReadString('\n')
 	if err != nil && err != io.EOF {
 		return "", err
 	}

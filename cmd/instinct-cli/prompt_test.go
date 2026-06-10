@@ -1,13 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"strings"
 	"testing"
 )
 
 // 入力が空のときdefaultValueを返す
 func TestPromptWithDefault_ReturnsDefaultOnEmptyInput(t *testing.T) {
-	r := strings.NewReader("\n")
+	r := bufio.NewReader(strings.NewReader("\n"))
 	var w strings.Builder
 
 	got, err := promptWithDefault(r, &w, "Branch", "tadahiro")
@@ -21,7 +22,7 @@ func TestPromptWithDefault_ReturnsDefaultOnEmptyInput(t *testing.T) {
 
 // 入力があるときその値を返す
 func TestPromptWithDefault_ReturnsEnteredValue(t *testing.T) {
-	r := strings.NewReader("myname\n")
+	r := bufio.NewReader(strings.NewReader("myname\n"))
 	var w strings.Builder
 
 	got, err := promptWithDefault(r, &w, "Branch", "tadahiro")
@@ -35,7 +36,7 @@ func TestPromptWithDefault_ReturnsEnteredValue(t *testing.T) {
 
 // プロンプト文字列が "ラベル [デフォルト値]: " の形式で出力される
 func TestPromptWithDefault_ShowsLabelAndDefault(t *testing.T) {
-	r := strings.NewReader("\n")
+	r := bufio.NewReader(strings.NewReader("\n"))
 	var w strings.Builder
 
 	promptWithDefault(r, &w, "Branch", "tadahiro") //nolint

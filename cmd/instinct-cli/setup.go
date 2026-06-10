@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	_ "embed"
@@ -31,15 +32,16 @@ func runSetup(projectDir string, in io.Reader, out io.Writer) error {
 	defaultBranch, _ := gitConfigValue("user.name")
 	defaultRemote, _ := gitOutput(projectDir, "remote", "get-url", "origin")
 
-	branch, err := promptWithDefault(in, out, "Branch", defaultBranch)
+	scanner := bufio.NewReader(in)
+	branch, err := promptWithDefault(scanner, out, "Branch", defaultBranch)
 	if err != nil {
 		return err
 	}
-	teamBranch, err := promptWithDefault(in, out, "Team branch", "main")
+	teamBranch, err := promptWithDefault(scanner, out, "Team branch", "main")
 	if err != nil {
 		return err
 	}
-	remoteURL, err := promptWithDefault(in, out, "Remote URL", defaultRemote)
+	remoteURL, err := promptWithDefault(scanner, out, "Remote URL", defaultRemote)
 	if err != nil {
 		return err
 	}
