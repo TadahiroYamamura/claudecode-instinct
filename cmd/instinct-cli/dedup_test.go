@@ -6,6 +6,35 @@ import (
 	"testing"
 )
 
+// execDedupは類似度が閾値未満のペアをHaikuに送らない
+func TestExecDedup_SkipsPairsBelowThreshold(t *testing.T) {
+	ctx, conn := setupTestDB(t)
+
+	for _, params := range []InsertParams{
+		{Content: "テスト前にlintを通す", TriggerDesc: "テスト実行時", Domain: "testing", Scope: "project", ObservationCount: 3, ProjectID: "abc"},
+		{Content: "lintエラーを解消してからテストを走らせる", TriggerDesc: "テスト実行時", Domain: "testing", Scope: "project", ObservationCount: 2, ProjectID: "abc"},
+	} {
+		if _, err := insertInstinct(ctx, conn, params); err != nil {
+			t.Fatalf("insert: %v", err)
+		}
+	}
+
+	callCount := 0
+	judge := func(_ context.Context, _, _ InstinctRow) (DedupDecision, error) {
+		callCount++
+		return DedupDecision{Decision: decisionDistinct}, nil
+	}
+
+	var buf strings.Builder
+	// threshold=1.0 なら完全一致以外はすべてスキップ
+	if err := execDedup(ctx, conn, judge, bigramSimilarity, 1.0, &buf); err != nil {
+		t.Fatalf("execDedup: %v", err)
+	}
+	if callCount != 0 {
+		t.Errorf("expected judge not called, got %d calls", callCount)
+	}
+}
+
 // execDedupはinstinctが0件のとき0ペアをチェックしたと報告する
 func TestExecDedup_EmptyInstinctsReportsZeroPairs(t *testing.T) {
 	ctx, conn := setupTestDB(t)
@@ -14,7 +43,7 @@ func TestExecDedup_EmptyInstinctsReportsZeroPairs(t *testing.T) {
 	judge := func(_ context.Context, _, _ InstinctRow) (DedupDecision, error) {
 		return DedupDecision{}, nil
 	}
-	if err := execDedup(ctx, conn, judge, &buf); err != nil {
+	if err := execDedup(ctx, conn, judge, bigramSimilarity, 0.0, &buf); err != nil {
 		t.Fatalf("execDedup: %v", err)
 	}
 	if !strings.Contains(buf.String(), "0") {
@@ -45,7 +74,7 @@ func TestExecDedup_DuplicateMergesObservationCountAndDeletesOne(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	if err := execDedup(ctx, conn, judge, &buf); err != nil {
+	if err := execDedup(ctx, conn, judge, bigramSimilarity, 0.0, &buf); err != nil {
 		t.Fatalf("execDedup: %v", err)
 	}
 
@@ -87,7 +116,7 @@ func TestExecDedup_DuplicateDecisionIsRecorded(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	if err := execDedup(ctx, conn, judge, &buf); err != nil {
+	if err := execDedup(ctx, conn, judge, bigramSimilarity, 0.0, &buf); err != nil {
 		t.Fatalf("execDedup: %v", err)
 	}
 

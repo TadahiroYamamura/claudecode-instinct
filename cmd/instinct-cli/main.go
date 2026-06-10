@@ -123,12 +123,13 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 		defer cleanup()
 		return execCommit(context.Background(), conn, cli.Commit.Message)
 	case "dedup":
-		conn, _, cleanup, err := openProjectConn(cwd)
+		conn, projectDir, cleanup, err := openProjectConn(cwd)
 		if err != nil {
 			return err
 		}
 		defer cleanup()
-		return execDedup(context.Background(), conn, haikuJudge, out)
+		cfg, _ := loadConfig(instinctDbDir(projectDir))
+		return execDedup(context.Background(), conn, haikuJudge, similarityFuncFromConfig(cfg), similarityThresholdFromConfig(cfg), out)
 	default:
 		return fmt.Errorf("unknown command: %s", kctx.Command())
 	}
