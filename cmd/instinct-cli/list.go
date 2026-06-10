@@ -72,11 +72,7 @@ func listMergedInstincts(ctx context.Context, conn *sql.Conn) ([]InstinctRow, er
 	return result, rows.Err()
 }
 
-func execListMerged(ctx context.Context, conn *sql.Conn, w io.Writer) error {
-	rows, err := listMergedInstincts(ctx, conn)
-	if err != nil {
-		return err
-	}
+func printInstincts(rows []InstinctRow, w io.Writer) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(tw, "ID\tCONTENT\tTRIGGER\tDOMAIN\tOBS\tSCOPE")
 	for _, r := range rows {
@@ -92,22 +88,18 @@ func execListMerged(ctx context.Context, conn *sql.Conn, w io.Writer) error {
 	return tw.Flush()
 }
 
+func execListMerged(ctx context.Context, conn *sql.Conn, w io.Writer) error {
+	rows, err := listMergedInstincts(ctx, conn)
+	if err != nil {
+		return err
+	}
+	return printInstincts(rows, w)
+}
+
 func execList(ctx context.Context, conn *sql.Conn, w io.Writer) error {
 	rows, err := listInstincts(ctx, conn)
 	if err != nil {
 		return err
 	}
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "ID\tCONTENT\tTRIGGER\tDOMAIN\tOBS\tSCOPE")
-	for _, r := range rows {
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%d\t%s\n",
-			r.ID[:shortIDLen],
-			truncate(r.Content, contentMaxRunes),
-			r.TriggerDesc,
-			r.Domain,
-			r.ObservationCount,
-			r.Scope,
-		)
-	}
-	return tw.Flush()
+	return printInstincts(rows, w)
 }
