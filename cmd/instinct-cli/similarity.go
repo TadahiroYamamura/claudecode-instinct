@@ -42,10 +42,9 @@ func overlapSimilarity(a, b string) float64 {
 	fa, fb := ngramFreq(a, 2), ngramFreq(b, 2)
 	intersection, union := 0, 0
 	seen := make(map[string]bool)
-	for k, va := range fa {
+	for k := range fa {
 		seen[k] = true
-		vb := fb[k]
-		if va > 0 && vb > 0 {
+		if fb[k] > 0 {
 			intersection++
 		}
 		union++
@@ -61,8 +60,10 @@ func overlapSimilarity(a, b string) float64 {
 	return float64(intersection) / float64(union)
 }
 
-const defaultSimilarityModel = "bigram"
-const defaultSimilarityThreshold = 0.15
+const (
+	defaultSimilarityModel     = "bigram"
+	defaultSimilarityThreshold = 0.15
+)
 
 var similarityModels = map[string]SimilarityFunc{
 	"bigram":  bigramSimilarity,
@@ -76,7 +77,7 @@ func similarityFuncFromConfig(cfg *InstinctConfig) SimilarityFunc {
 			return fn
 		}
 	}
-	return bigramSimilarity
+	return similarityModels[defaultSimilarityModel]
 }
 
 func similarityThresholdFromConfig(cfg *InstinctConfig) float64 {
