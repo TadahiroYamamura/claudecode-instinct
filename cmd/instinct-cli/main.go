@@ -39,12 +39,15 @@ type commitCmd struct {
 	Message string `kong:"name='message',short='m',default='observer: batch commit',help='Commit message'"`
 }
 
+type dedupCmd struct{}
+
 type cliStruct struct {
 	Setup  setupCmd    `cmd:"" help:"Initialize .instinct-db in current directory"`
 	Insert insertFlags `cmd:"" help:"Insert an instinct"`
 	List   listCmd     `cmd:"" help:"List instincts"`
 	Show   showCmd     `cmd:"" help:"Show full details of an instinct"`
 	Commit commitCmd   `cmd:"" help:"Commit working set to Dolt history"`
+	Dedup  dedupCmd    `cmd:"" help:"Detect and merge duplicate instincts using Haiku"`
 }
 
 func instinctDbDir(projectDir string) string {
@@ -119,6 +122,13 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 		}
 		defer cleanup()
 		return execCommit(context.Background(), conn, cli.Commit.Message)
+	case "dedup":
+		conn, _, cleanup, err := openProjectConn(cwd)
+		if err != nil {
+			return err
+		}
+		defer cleanup()
+		return execDedup(context.Background(), conn, haikuJudge, out)
 	default:
 		return fmt.Errorf("unknown command: %s", kctx.Command())
 	}

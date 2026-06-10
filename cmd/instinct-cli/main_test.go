@@ -77,6 +77,22 @@ func TestDispatch_NoArgs_ReturnsUsageErrorNotProjectDirError(t *testing.T) {
 	}
 }
 
+// dispatchはdedupサブコマンドをexecDedupにルーティングする（instinctが0件なのでjudgeは呼ばれない）
+func TestDispatch_DedupCommand_ZeroPairsWhenEmpty(t *testing.T) {
+	dir := t.TempDir()
+	if err := dispatch([]string{"setup", "--yes"}, dir, nil, io.Discard); err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+
+	var buf strings.Builder
+	if err := dispatch([]string{"dedup"}, dir, nil, &buf); err != nil {
+		t.Fatalf("dedup: %v", err)
+	}
+	if !strings.Contains(buf.String(), "0") {
+		t.Errorf("expected '0 pairs' in output, got: %q", buf.String())
+	}
+}
+
 // dispatch(["setup"], dir)が.instinct-db/data/を作成する
 func TestCLI_SetupCommand_CreatesInstinctDb(t *testing.T) {
 	dir := t.TempDir()
