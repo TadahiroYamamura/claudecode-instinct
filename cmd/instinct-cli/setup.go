@@ -1,15 +1,25 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	_ "embed"
-	"fmt"
 	"os"
 	"path/filepath"
+	"text/template"
 )
 
 //go:embed templates/gitignore.tmpl
 var instinctDbGitignore []byte
+
+//go:embed templates/config.tmpl
+var configTemplate string
+
+type configData struct {
+	ProjectName string
+	Branch      string
+	RemoteURL   string
+}
 
 func runSetup(projectDir string) error {
 	if err := setupDB(context.Background(), instinctDataDir(projectDir)); err != nil {
@@ -23,12 +33,18 @@ func runSetup(projectDir string) error {
 
 	remoteURL, _ := gitOutput(projectDir, "remote", "get-url", "origin")
 
-	projectName := filepath.Base(projectDir)
 	dbDir := instinctDbDir(projectDir)
 
-	configPath := filepath.Join(dbDir, "config.yml")
-	config := fmt.Sprintf("dolt:\n  refs: refs/dolt/%s/\n  branch: %s\n  team_branch: main\n  remote_url: %s\n", projectName, branch, remoteURL)
-	if err := os.WriteFile(configPath, []byte(config), 0o644); err != nil {
+	var buf bytes.Buffer
+	tmpl := template.Must(template.New("config").Parse(configTemplate))
+	if err := tmpl.Execute(&buf, configData{
+		ProjectName: filepath.Base(projectDir),
+		Branch:      branch,
+		RemoteURL:   remoteURL,
+	}); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(dbDir, "config.yml"), buf.Bytes(), 0o644); err != nil {
 		return err
 	}
 
