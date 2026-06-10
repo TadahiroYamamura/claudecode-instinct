@@ -11,9 +11,12 @@ import (
 
 type setupCmd struct{}
 
+type listCmd struct{}
+
 type cliStruct struct {
 	Setup  setupCmd    `cmd:"" help:"Initialize .instinct-db in current directory"`
 	Insert insertFlags `cmd:"" help:"Insert an instinct"`
+	List   listCmd     `cmd:"" help:"List instincts"`
 }
 
 
@@ -65,6 +68,17 @@ func dispatch(args []string, cwd string) error {
 		return execInsert(context.Background(), conn, cli.Insert, func(_ string) (string, error) {
 			return resolveProjectID(projectDir)
 		})
+	case "list":
+		projectDir, err := findProjectDirFrom(cwd)
+		if err != nil {
+			return err
+		}
+		conn, cleanup, err := openConn(context.Background(), instinctDataDir(projectDir))
+		if err != nil {
+			return err
+		}
+		defer cleanup()
+		return execList(context.Background(), conn, os.Stdout)
 	default:
 		return fmt.Errorf("unknown command: %s", kctx.Command())
 	}

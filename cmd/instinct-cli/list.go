@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 	"time"
 )
 
@@ -32,4 +33,15 @@ func listInstincts(ctx context.Context, conn *sql.Conn) ([]InstinctRow, error) {
 		result = append(result, r)
 	}
 	return result, rows.Err()
+}
+
+func execList(ctx context.Context, conn *sql.Conn, w io.Writer) error {
+	rows, err := listInstincts(ctx, conn)
+	if err != nil {
+		return err
+	}
+	for _, r := range rows {
+		fmt.Fprintln(w, r.Content)
+	}
+	return nil
 }

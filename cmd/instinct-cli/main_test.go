@@ -7,6 +7,30 @@ import (
 	"testing"
 )
 
+// dispatch(["list"], dir)がDBの内容を標準出力へ書き出す
+func TestCLI_ListCommand_PrintsInsertedRecord(t *testing.T) {
+	ctx, conn := setupTestDB(t)
+
+	if err := insertInstinct(ctx, conn, InsertParams{
+		Content:          "git push前にテストを実行する",
+		TriggerDesc:      "git push時",
+		Domain:           "git",
+		Scope:            "project",
+		ObservationCount: 3,
+		ProjectID:        "abc123def456",
+	}); err != nil {
+		t.Fatalf("insertInstinct: %v", err)
+	}
+
+	var buf strings.Builder
+	if err := execList(ctx, conn, &buf); err != nil {
+		t.Fatalf("execList: %v", err)
+	}
+	if !strings.Contains(buf.String(), "git push前にテストを実行する") {
+		t.Errorf("output = %q", buf.String())
+	}
+}
+
 // サブコマンドなしのとき.instinct-db探索エラーではなく使用法エラーを返す
 func TestDispatch_NoArgs_ReturnsUsageErrorNotProjectDirError(t *testing.T) {
 	dir := t.TempDir() // .instinct-dbが存在しないディレクトリ
