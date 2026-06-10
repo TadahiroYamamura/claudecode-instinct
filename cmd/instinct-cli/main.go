@@ -36,7 +36,10 @@ func openProjectConn(cwd string) (*sql.Conn, string, func(), error) {
 }
 
 type setupCmd struct {
-	Yes bool `kong:"short='y',help='Accept all defaults without prompting'"`
+	Yes        bool   `kong:"short='y',help='Accept all defaults without prompting'"`
+	Branch     string `kong:"name='branch',short='b',help='Personal branch name (default: git config user.name)'"`
+	TeamBranch string `kong:"name='team-branch',help='Team branch name (default: main)'"`
+	RemoteURL  string `kong:"name='remote-url',short='r',help='Remote URL (default: git remote get-url origin)'"`
 }
 
 type listCmd struct {
@@ -109,7 +112,7 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 	}
 	switch kctx.Command() {
 	case "setup":
-		return runSetup(cwd, cli.Setup.Yes, in, out)
+		return runSetup(cwd, cli.Setup, in, out)
 	case "insert":
 		conn, projectDir, cleanup, err := openProjectConn(cwd)
 		if err != nil {

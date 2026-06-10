@@ -29,7 +29,7 @@ func TestSetup_CreatesDoltDBDirectory(t *testing.T) {
 	dir := t.TempDir()
 	gitInitWithRemote(t, dir)
 
-	if err := execSetup(dir, true, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
+	if err := execSetup(dir, setupParams{Yes: true}, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
 		t.Fatalf("execSetup: %v", err)
 	}
 
@@ -44,7 +44,7 @@ func TestSetup_CreatesGitignoreInInstinctDb(t *testing.T) {
 	dir := t.TempDir()
 	gitInitWithRemote(t, dir)
 
-	if err := execSetup(dir, true, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
+	if err := execSetup(dir, setupParams{Yes: true}, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
 		t.Fatalf("execSetup: %v", err)
 	}
 
@@ -67,7 +67,7 @@ func TestSetup_InitPath_ConfigUserYmlContainsBranch(t *testing.T) {
 		t.Fatalf("mkdir: %v", err)
 	}
 	gitInitWithRemote(t, dir)
-	if err := execSetup(dir, true, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
+	if err := execSetup(dir, setupParams{Yes: true}, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
 		t.Fatalf("execSetup: %v", err)
 	}
 	data, err := os.ReadFile(filepath.Join(dir, ".instinct-db", "config.user.yml"))
@@ -83,7 +83,7 @@ func TestSetup_InitPath_ConfigUserYmlContainsBranch(t *testing.T) {
 func TestSetup_InitPath_ConfigTeamYmlContainsTeamBranch(t *testing.T) {
 	dir := t.TempDir()
 	gitInitWithRemote(t, dir)
-	if err := execSetup(dir, true, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
+	if err := execSetup(dir, setupParams{Yes: true}, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
 		t.Fatalf("execSetup: %v", err)
 	}
 	data, err := os.ReadFile(filepath.Join(dir, ".instinct-db", "config.team.yml"))
@@ -101,7 +101,7 @@ func TestSetup_InitPath_ConfigTeamYmlContainsRemoteURL(t *testing.T) {
 	mustRun(t, "git", "-C", dir, "init")
 	mustRun(t, "git", "-C", dir, "remote", "add", "origin", "https://github.com/test/repo.git")
 
-	if err := execSetup(dir, true, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
+	if err := execSetup(dir, setupParams{Yes: true}, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
 		t.Fatalf("execSetup: %v", err)
 	}
 	data, err := os.ReadFile(filepath.Join(dir, ".instinct-db", "config.team.yml"))
@@ -117,7 +117,7 @@ func TestSetup_InitPath_ConfigTeamYmlContainsRemoteURL(t *testing.T) {
 func TestSetup_InitPath_ConfigTeamYmlDoesNotContainBranch(t *testing.T) {
 	dir := t.TempDir()
 	gitInitWithRemote(t, dir)
-	if err := execSetup(dir, true, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
+	if err := execSetup(dir, setupParams{Yes: true}, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
 		t.Fatalf("execSetup: %v", err)
 	}
 	data, err := os.ReadFile(filepath.Join(dir, ".instinct-db", "config.team.yml"))
@@ -147,7 +147,7 @@ func TestSetup_YesFlagSkipsPrompts(t *testing.T) {
 	dir := t.TempDir()
 	gitInitWithRemote(t, dir)
 
-	if err := execSetup(dir, true, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
+	if err := execSetup(dir, setupParams{Yes: true}, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
 		t.Fatalf("execSetup --yes: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, ".instinct-db", "data")); os.IsNotExist(err) {
@@ -161,7 +161,7 @@ func TestSetup_UsesInteractiveInputForBranch(t *testing.T) {
 	// branch=custombranch、残りはデフォルト（team_branch=main、remote_url=空）
 	in := strings.NewReader("custombranch\nmain\nhttps://github.com/test/repo.git\n")
 
-	if err := execSetup(dir, false, in, io.Discard, fakeCloneFail, fakePush); err != nil {
+	if err := execSetup(dir, setupParams{}, in, io.Discard, fakeCloneFail, fakePush); err != nil {
 		t.Fatalf("execSetup: %v", err)
 	}
 	data, err := os.ReadFile(filepath.Join(dir, ".instinct-db", "config.user.yml"))
@@ -181,7 +181,7 @@ func TestSetup_ConfigTeamYmlContainsRefsBasedOnDirName(t *testing.T) {
 	}
 	gitInitWithRemote(t, dir)
 
-	if err := execSetup(dir, true, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
+	if err := execSetup(dir, setupParams{Yes: true}, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
 		t.Fatalf("execSetup: %v", err)
 	}
 
@@ -199,7 +199,7 @@ func TestSetup_ClonePath_WritesOnlyUserConfig(t *testing.T) {
 	dir := t.TempDir()
 	gitInitWithRemote(t, dir)
 
-	if err := execSetup(dir, true, nil, io.Discard, fakeClone, fakePush); err != nil {
+	if err := execSetup(dir, setupParams{Yes: true}, nil, io.Discard, fakeClone, fakePush); err != nil {
 		t.Fatalf("execSetup: %v", err)
 	}
 
@@ -224,8 +224,55 @@ func TestSetup_ErrorWhenRemoteURLEmpty(t *testing.T) {
 	dir := t.TempDir()
 	// remote_urlを空にするため git remote を設定しない
 
-	err := execSetup(dir, true, nil, io.Discard, fakeCloneFail, fakePush)
+	err := execSetup(dir, setupParams{Yes: true}, nil, io.Discard, fakeCloneFail, fakePush)
 	if err == nil {
 		t.Error("expected error when remote_url is empty")
+	}
+}
+
+// フラグで全値を明示指定すれば--yesなしでもin=nilでセットアップできる
+func TestSetup_ExplicitFlagsSkipAllPrompts(t *testing.T) {
+	dir := t.TempDir()
+	gitInitWithRemote(t, dir)
+
+	params := setupParams{
+		Branch:     "my-branch",
+		TeamBranch: "team-main",
+		RemoteURL:  "git@github.com:org/repo.git",
+	}
+	if err := execSetup(dir, params, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
+		t.Fatalf("execSetup: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, ".instinct-db", "config.user.yml"))
+	if err != nil {
+		t.Fatalf("read config.user.yml: %v", err)
+	}
+	if !strings.Contains(string(data), "branch: my-branch") {
+		t.Errorf("expected branch: my-branch, got:\n%s", data)
+	}
+}
+
+// 一部のフラグを指定すれば指定分だけプロンプトをスキップできる
+func TestSetup_PartialFlagsPromptOnlyMissing(t *testing.T) {
+	dir := t.TempDir()
+	gitInitWithRemote(t, dir)
+
+	// branch と remote_url だけ指定 → team_branch はプロンプト
+	params := setupParams{
+		Branch:    "my-branch",
+		RemoteURL: "git@github.com:org/repo.git",
+	}
+	in := strings.NewReader("custom-team\n")
+	if err := execSetup(dir, params, in, io.Discard, fakeCloneFail, fakePush); err != nil {
+		t.Fatalf("execSetup: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, ".instinct-db", "config.team.yml"))
+	if err != nil {
+		t.Fatalf("read config.team.yml: %v", err)
+	}
+	if !strings.Contains(string(data), "team_branch: custom-team") {
+		t.Errorf("expected team_branch: custom-team, got:\n%s", data)
 	}
 }

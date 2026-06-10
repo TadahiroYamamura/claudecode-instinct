@@ -36,6 +36,13 @@ type userConfigData struct {
 	Branch string
 }
 
+type setupParams struct {
+	Branch     string
+	TeamBranch string
+	RemoteURL  string
+	Yes        bool
+}
+
 type doltCloneFunc func(ctx context.Context, dataDir, refs, branch, remoteURL string) error
 
 var defaultDoltClone doltCloneFunc = func(ctx context.Context, dataDir, refs, branch, remoteURL string) error {
@@ -56,29 +63,44 @@ var defaultDoltClone doltCloneFunc = func(ctx context.Context, dataDir, refs, br
 	return err
 }
 
-func runSetup(projectDir string, yes bool, in io.Reader, out io.Writer) error {
-	return execSetup(projectDir, yes, in, out, defaultDoltClone, defaultDoltPush)
+func runSetup(projectDir string, cmd setupCmd, in io.Reader, out io.Writer) error {
+	return execSetup(projectDir, setupParams{
+		Branch:     cmd.Branch,
+		TeamBranch: cmd.TeamBranch,
+		RemoteURL:  cmd.RemoteURL,
+		Yes:        cmd.Yes,
+	}, in, out, defaultDoltClone, defaultDoltPush)
 }
 
-func execSetup(projectDir string, yes bool, in io.Reader, out io.Writer, cloneFn doltCloneFunc, pushFn doltPushFunc) error {
+func execSetup(projectDir string, params setupParams, in io.Reader, out io.Writer, cloneFn doltCloneFunc, pushFn doltPushFunc) error {
 	defaultBranch, _ := gitConfigValue("user.name")
 	defaultRemote, _ := gitOutput(projectDir, "remote", "get-url", "origin")
 
-	var branch, teamBranch, remoteURL string
-	if yes {
-		branch, teamBranch, remoteURL = defaultBranch, defaultTeamBranch, defaultRemote
-	} else {
-		reader := bufio.NewReader(in)
-		var err error
-		if branch, err = promptWithDefault(reader, out, "Branch", defaultBranch); err != nil {
-			return err
+	var reader *bufio.Reader
+	if in != nil {
+		reader = bufio.NewReader(in)
+	}
+	resolve := func(explicit, defaultVal, label string) (string, error) {
+		if explicit != "" {
+			return explicit, nil
 		}
-		if teamBranch, err = promptWithDefault(reader, out, "Team branch", defaultTeamBranch); err != nil {
-			return err
+		if params.Yes || reader == nil {
+			return defaultVal, nil
 		}
-		if remoteURL, err = promptWithDefault(reader, out, "Remote URL", defaultRemote); err != nil {
-			return err
-		}
+		return promptWithDefault(reader, out, label, defaultVal)
+	}
+
+	branch, err := resolve(params.Branch, defaultBranch, "Branch")
+	if err != nil {
+		return err
+	}
+	teamBranch, err := resolve(params.TeamBranch, defaultTeamBranch, "Team branch")
+	if err != nil {
+		return err
+	}
+	remoteURL, err := resolve(params.RemoteURL, defaultRemote, "Remote URL")
+	if err != nil {
+		return err
 	}
 
 	if remoteURL == "" {

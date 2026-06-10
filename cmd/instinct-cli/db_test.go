@@ -49,7 +49,7 @@ func TestOpenProjectConn_ErrorWhenUserConfigAbsent(t *testing.T) {
 func TestOpenProjectConn_SucceedsAfterSetup(t *testing.T) {
 	dir := t.TempDir()
 	gitInitWithRemote(t, dir)
-	if err := execSetup(dir, true, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
+	if err := execSetup(dir, setupParams{Yes: true}, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
 		t.Fatalf("execSetup: %v", err)
 	}
 
@@ -72,7 +72,7 @@ func TestOpenProjectConn_CheckoutsPersonalBranch(t *testing.T) {
 	dir := t.TempDir()
 	gitInitWithRemote(t, dir)
 	dbDir := filepath.Join(dir, ".instinct-db")
-	if err := execSetup(dir, true, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
+	if err := execSetup(dir, setupParams{Yes: true}, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
 		t.Fatalf("execSetup: %v", err)
 	}
 

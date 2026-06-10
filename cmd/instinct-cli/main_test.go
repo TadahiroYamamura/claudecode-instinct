@@ -151,7 +151,7 @@ func TestDispatch_NoArgs_ReturnsUsageErrorNotProjectDirError(t *testing.T) {
 func TestDispatch_DedupCommand_ZeroPairsWhenEmpty(t *testing.T) {
 	dir := t.TempDir()
 	gitInitWithRemote(t, dir)
-	if err := execSetup(dir, true, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
+	if err := execSetup(dir, setupParams{Yes: true}, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
 		t.Fatalf("setup: %v", err)
 	}
 
@@ -169,7 +169,7 @@ func TestCLI_SetupCommand_CreatesInstinctDb(t *testing.T) {
 	dir := t.TempDir()
 	gitInitWithRemote(t, dir)
 
-	if err := execSetup(dir, true, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
+	if err := execSetup(dir, setupParams{Yes: true}, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
 		t.Fatalf("dispatch: %v", err)
 	}
 
