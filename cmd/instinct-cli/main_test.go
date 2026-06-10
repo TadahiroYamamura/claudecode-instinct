@@ -81,7 +81,7 @@ func TestDispatch_NoArgs_ReturnsUsageErrorNotProjectDirError(t *testing.T) {
 func TestCLI_SetupCommand_CreatesInstinctDb(t *testing.T) {
 	dir := t.TempDir()
 
-	if err := dispatch([]string{"setup"}, dir, strings.NewReader("\n\n\n"), io.Discard); err != nil {
+	if err := dispatch([]string{"setup", "--yes"}, dir, nil, io.Discard); err != nil {
 		t.Fatalf("dispatch: %v", err)
 	}
 

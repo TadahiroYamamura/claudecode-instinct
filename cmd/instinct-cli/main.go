@@ -23,7 +23,9 @@ func openProjectConn(cwd string) (*sql.Conn, string, func(), error) {
 	return conn, projectDir, cleanup, nil
 }
 
-type setupCmd struct{}
+type setupCmd struct {
+	Yes bool `kong:"short='y',help='Accept all defaults without prompting'"`
+}
 
 type listCmd struct {
 	Merged bool `kong:"name='merged',help='Include main branch instincts (deduped by ID)'"`
@@ -74,7 +76,7 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 	}
 	switch kctx.Command() {
 	case "setup":
-		return runSetup(cwd, in, out)
+		return runSetup(cwd, cli.Setup.Yes, in, out)
 	case "insert":
 		conn, projectDir, cleanup, err := openProjectConn(cwd)
 		if err != nil {

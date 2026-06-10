@@ -26,7 +26,7 @@ type configData struct {
 	RemoteURL   string
 }
 
-func runSetup(projectDir string, in io.Reader, out io.Writer) error {
+func runSetup(projectDir string, yes bool, in io.Reader, out io.Writer) error {
 	if err := setupDB(context.Background(), instinctDataDir(projectDir)); err != nil {
 		return err
 	}
@@ -34,18 +34,21 @@ func runSetup(projectDir string, in io.Reader, out io.Writer) error {
 	defaultBranch, _ := gitConfigValue("user.name")
 	defaultRemote, _ := gitOutput(projectDir, "remote", "get-url", "origin")
 
-	reader := bufio.NewReader(in)
-	branch, err := promptWithDefault(reader, out, "Branch", defaultBranch)
-	if err != nil {
-		return err
-	}
-	teamBranch, err := promptWithDefault(reader, out, "Team branch", "main")
-	if err != nil {
-		return err
-	}
-	remoteURL, err := promptWithDefault(reader, out, "Remote URL", defaultRemote)
-	if err != nil {
-		return err
+	var branch, teamBranch, remoteURL string
+	if yes {
+		branch, teamBranch, remoteURL = defaultBranch, "main", defaultRemote
+	} else {
+		reader := bufio.NewReader(in)
+		var err error
+		if branch, err = promptWithDefault(reader, out, "Branch", defaultBranch); err != nil {
+			return err
+		}
+		if teamBranch, err = promptWithDefault(reader, out, "Team branch", "main"); err != nil {
+			return err
+		}
+		if remoteURL, err = promptWithDefault(reader, out, "Remote URL", defaultRemote); err != nil {
+			return err
+		}
 	}
 
 	dbDir := instinctDbDir(projectDir)
