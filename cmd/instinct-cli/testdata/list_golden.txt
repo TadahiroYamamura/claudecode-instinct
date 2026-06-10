@@ -1,0 +1,2 @@
+bb000000  run tests before pushing        on git push  git      7  global
+aa000000  check spec before writing test  on test run  testing  5  project
