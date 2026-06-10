@@ -49,6 +49,25 @@ const createInstinctsTable = `CREATE TABLE instincts (
 	updated_at        TIMESTAMP     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 )`
 
+const createDedupDecisionsTable = `CREATE TABLE dedup_decisions (
+	id              VARCHAR(64)   PRIMARY KEY,
+	instinct_id_a   VARCHAR(64)   NOT NULL,
+	instinct_id_b   VARCHAR(64)   NOT NULL,
+	content_a       TEXT          NOT NULL,
+	content_b       TEXT          NOT NULL,
+	trigger_a       TEXT          NOT NULL,
+	trigger_b       TEXT          NOT NULL,
+	decision        ENUM('duplicate','distinct') NOT NULL,
+	reasoning       TEXT,
+	similarity      DECIMAL(4,3),
+	decided_by      ENUM('agent','human') NOT NULL DEFAULT 'agent',
+	human_label     ENUM('correct','wrong'),
+	source_branch_a VARCHAR(128),
+	source_branch_b VARCHAR(128),
+	winner_branch   VARCHAR(128),
+	created_at      TIMESTAMP     DEFAULT CURRENT_TIMESTAMP
+)`
+
 func openDoltDB(dataDir string) (*sql.DB, error) {
 	dsn, err := doltDSNWithGitIdentity(dataDir)
 	if err != nil {
@@ -109,6 +128,7 @@ func setupDB(ctx context.Context, dataDir string) error {
 		"CREATE DATABASE " + dbName,
 		"USE " + dbName,
 		createInstinctsTable,
+		createDedupDecisionsTable,
 	} {
 		if _, err := conn.ExecContext(ctx, stmt); err != nil {
 			return fmt.Errorf("exec %q: %w", stmt[:min(len(stmt), 40)], err)
