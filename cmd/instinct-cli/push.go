@@ -14,16 +14,18 @@ var defaultDoltPush doltPushFunc = func(ctx context.Context, conn *sql.Conn, rem
 	return err
 }
 
+func ensureRemote(ctx context.Context, conn *sql.Conn, refs, remoteURL string) {
+	conn.ExecContext(ctx, "CALL dolt_remote('add', '--ref', ?, 'origin', ?)", refs, remoteURL) //nolint
+}
+
 func execPush(ctx context.Context, conn *sql.Conn, cfg *InstinctConfig, push doltPushFunc, w io.Writer) error {
 	if cfg.Dolt.RemoteURL == "" {
 		return fmt.Errorf("dolt.remote_url is not configured in config.yml")
 	}
-	// 既存リモートがあってもエラーにしない
-	conn.ExecContext(ctx, "CALL dolt_remote('add', '--ref', ?, 'origin', ?)", //nolint
-		cfg.Dolt.Refs, cfg.Dolt.RemoteURL)
 	if cfg.Dolt.Branch == "" {
 		return fmt.Errorf("dolt.branch is not configured in config.yml")
 	}
+	ensureRemote(ctx, conn, cfg.Dolt.Refs, cfg.Dolt.RemoteURL)
 	if err := push(ctx, conn, "origin", cfg.Dolt.Branch); err != nil {
 		return fmt.Errorf("push: %w", err)
 	}

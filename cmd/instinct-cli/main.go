@@ -41,6 +41,7 @@ type commitCmd struct {
 
 type dedupCmd struct{}
 type pushCmd struct{}
+type pullCmd struct{}
 
 type cliStruct struct {
 	Setup  setupCmd    `cmd:"" help:"Initialize .instinct-db in current directory"`
@@ -50,6 +51,7 @@ type cliStruct struct {
 	Commit commitCmd   `cmd:"" help:"Commit working set to Dolt history"`
 	Dedup  dedupCmd    `cmd:"" help:"Detect and merge duplicate instincts using Haiku"`
 	Push   pushCmd     `cmd:"" help:"Push personal branch to remote repository"`
+	Pull   pullCmd     `cmd:"" help:"Pull team branch from remote repository"`
 }
 
 func instinctDbDir(projectDir string) string {
@@ -143,6 +145,17 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 			return err
 		}
 		return execPush(context.Background(), conn, cfg, defaultDoltPush, out)
+	case "pull":
+		conn, projectDir, cleanup, err := openProjectConn(cwd)
+		if err != nil {
+			return err
+		}
+		defer cleanup()
+		cfg, err := loadConfig(instinctDbDir(projectDir))
+		if err != nil {
+			return err
+		}
+		return execPull(context.Background(), conn, cfg, defaultDoltPull, out)
 	default:
 		return fmt.Errorf("unknown command: %s", kctx.Command())
 	}
