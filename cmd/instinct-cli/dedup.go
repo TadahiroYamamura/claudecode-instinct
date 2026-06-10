@@ -43,10 +43,6 @@ func mergeAndDelete(ctx context.Context, conn *sql.Conn, winner, loser InstinctR
 	return err
 }
 
-func haikuJudge(ctx context.Context, a, b InstinctRow) (DedupDecision, error) {
-	return DedupDecision{Decision: decisionDistinct}, nil
-}
-
 func execDedup(ctx context.Context, conn *sql.Conn, judge DedupJudge, w io.Writer) error {
 	instincts, err := listInstincts(ctx, conn)
 	if err != nil {
