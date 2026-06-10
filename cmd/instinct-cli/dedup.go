@@ -36,11 +36,12 @@ func execDedup(ctx context.Context, conn *sql.Conn, judge DedupJudge, w io.Write
 	pairs := 0
 	for i := 0; i < len(instincts); i++ {
 		for j := i + 1; j < len(instincts); j++ {
-			d, err := judge(ctx, instincts[i], instincts[j])
+			a, b := instincts[i], instincts[j]
+			d, err := judge(ctx, a, b)
 			if err != nil {
-				return fmt.Errorf("judge pair (%s, %s): %w", instincts[i].ID, instincts[j].ID, err)
+				return fmt.Errorf("judge pair (%s, %s): %w", a.ID, b.ID, err)
 			}
-			if err := insertDedupDecision(ctx, conn, instincts[i], instincts[j], d); err != nil {
+			if err := insertDedupDecision(ctx, conn, a, b, d); err != nil {
 				return fmt.Errorf("record decision: %w", err)
 			}
 			pairs++
