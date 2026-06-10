@@ -65,9 +65,10 @@ dedup:
   auto_run_before_push: false
 
 dolt:
-  remote_url: "git@github.com:ORG/REPO.git"
-  refs: "refs/dolt/project-name"   # モノレポ対応：プロジェクト固有 namespace
+  refs: "refs/dolt/project-name"   # モノレポ対応：プロジェクト固有 namespace（setup時にディレクトリ名から自動設定）
   branch: tadahiro                 # 個人ブランチ名（setup時にgit config user.nameから自動設定）
+  team_branch: main                # チームブランチ名（list --merged の参照先）
+  remote_url: "git@github.com:ORG/REPO.git"  # push/pull先（setup時にgit remote origin urlから自動設定）
 ```
 
 ## instinct-cli サブコマンド
