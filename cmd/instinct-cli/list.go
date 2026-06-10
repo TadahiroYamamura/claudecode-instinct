@@ -51,6 +51,8 @@ func truncate(s string, n int) string {
 }
 
 func listMergedInstincts(ctx context.Context, conn *sql.Conn, teamBranch string) ([]InstinctRow, error) {
+	// AS OF はプレースホルダー非対応のため Sprintf で埋め込む。
+	// teamBranch は config.yml 由来（ユーザー入力ではない）。
 	query := fmt.Sprintf(`
 		SELECT id, content, trigger_desc, domain, observation_count, scope, created_at FROM instincts
 		UNION
