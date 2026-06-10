@@ -25,7 +25,7 @@ func runSetup(projectDir string) error {
 	dbDir := instinctDbDir(projectDir)
 
 	configPath := filepath.Join(dbDir, "config.yml")
-	config := fmt.Sprintf("dolt:\n  refs: refs/dolt/%s/\n  branch: %s\n", projectName, branch)
+	config := fmt.Sprintf("dolt:\n  refs: refs/dolt/%s/\n  branch: %s\n  team_branch: main\n", projectName, branch)
 	if err := os.WriteFile(configPath, []byte(config), 0o644); err != nil {
 		return err
 	}

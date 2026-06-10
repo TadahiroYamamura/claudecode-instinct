@@ -59,6 +59,21 @@ func TestSetup_ConfigYmlContainsBranch(t *testing.T) {
 	}
 }
 
+// setup実行後にconfig.ymlのdolt.team_branchがmainに設定される
+func TestSetup_ConfigYmlContainsTeamBranch(t *testing.T) {
+	dir := t.TempDir()
+	if err := runSetup(dir); err != nil {
+		t.Fatalf("runSetup: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, ".instinct-db", "config.yml"))
+	if err != nil {
+		t.Fatalf("read config.yml: %v", err)
+	}
+	if !strings.Contains(string(data), "team_branch: main") {
+		t.Errorf("config.yml does not contain team_branch: main, got:\n%s", data)
+	}
+}
+
 // config.ymlのrefsがディレクトリ名から自動推定される
 func TestSetup_ConfigYmlContainsRefsBasedOnDirName(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "myproject")
