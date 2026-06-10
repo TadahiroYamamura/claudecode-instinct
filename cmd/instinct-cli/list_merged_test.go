@@ -34,7 +34,7 @@ func TestListMerged_IncludesMainBranchInstincts(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	if err := execListMerged(ctx, conn, &buf); err != nil {
+	if err := execListMerged(ctx, conn, "main", &buf); err != nil {
 		t.Fatalf("execListMerged: %v", err)
 	}
 	out := buf.String()
@@ -43,6 +43,41 @@ func TestListMerged_IncludesMainBranchInstincts(t *testing.T) {
 	}
 	if !strings.Contains(out, "shared instinct on main") {
 		t.Error("expected main branch instinct in output")
+	}
+}
+
+// list --merged はconfig で指定したチームブランチを参照する
+func TestListMerged_UsesConfiguredTeamBranch(t *testing.T) {
+	ctx, conn := setupTestDB(t)
+
+	// スキーマを main にコミットしてから team ブランチを作成する
+	if _, err := conn.ExecContext(ctx, `CALL dolt_commit('-Am', 'test: init schema')`); err != nil {
+		t.Fatalf("commit schema: %v", err)
+	}
+	if _, err := conn.ExecContext(ctx, `CALL dolt_checkout('-b', 'team')`); err != nil {
+		t.Fatalf("checkout team: %v", err)
+	}
+	if _, err := insertInstinct(ctx, conn, InsertParams{
+		Content: "team branch instinct", TriggerDesc: "always",
+		Domain: "git", Scope: "global", ObservationCount: 1, ProjectID: "abc123def456",
+	}); err != nil {
+		t.Fatalf("insert on team: %v", err)
+	}
+	if _, err := conn.ExecContext(ctx, `CALL dolt_commit('-Am', 'test: team instinct')`); err != nil {
+		t.Fatalf("commit on team: %v", err)
+	}
+
+	// 個人ブランチを作成して切り替え
+	if _, err := conn.ExecContext(ctx, `CALL dolt_checkout('-b', 'personal')`); err != nil {
+		t.Fatalf("checkout personal: %v", err)
+	}
+
+	var buf strings.Builder
+	if err := execListMerged(ctx, conn, "team", &buf); err != nil {
+		t.Fatalf("execListMerged: %v", err)
+	}
+	if !strings.Contains(buf.String(), "team branch instinct") {
+		t.Errorf("expected team branch instinct in output, got:\n%s", buf.String())
 	}
 }
 
@@ -68,7 +103,7 @@ func TestListMerged_DeduplicatesByID(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	if err := execListMerged(ctx, conn, &buf); err != nil {
+	if err := execListMerged(ctx, conn, "main", &buf); err != nil {
 		t.Fatalf("execListMerged: %v", err)
 	}
 

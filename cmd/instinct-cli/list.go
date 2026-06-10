@@ -50,12 +50,13 @@ func truncate(s string, n int) string {
 	return string(runes[:n]) + "..."
 }
 
-func listMergedInstincts(ctx context.Context, conn *sql.Conn) ([]InstinctRow, error) {
-	rows, err := conn.QueryContext(ctx, `
+func listMergedInstincts(ctx context.Context, conn *sql.Conn, teamBranch string) ([]InstinctRow, error) {
+	query := fmt.Sprintf(`
 		SELECT id, content, trigger_desc, domain, observation_count, scope, created_at FROM instincts
 		UNION
-		SELECT id, content, trigger_desc, domain, observation_count, scope, created_at FROM instincts AS OF 'main'
-		ORDER BY created_at DESC`)
+		SELECT id, content, trigger_desc, domain, observation_count, scope, created_at FROM instincts AS OF '%s'
+		ORDER BY created_at DESC`, teamBranch)
+	rows, err := conn.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("list merged instincts: %w", err)
 	}
@@ -88,8 +89,8 @@ func printInstincts(rows []InstinctRow, w io.Writer) error {
 	return tw.Flush()
 }
 
-func execListMerged(ctx context.Context, conn *sql.Conn, w io.Writer) error {
-	rows, err := listMergedInstincts(ctx, conn)
+func execListMerged(ctx context.Context, conn *sql.Conn, teamBranch string, w io.Writer) error {
+	rows, err := listMergedInstincts(ctx, conn, teamBranch)
 	if err != nil {
 		return err
 	}

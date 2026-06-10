@@ -90,7 +90,7 @@ func dispatch(args []string, cwd string) error {
 		}
 		defer cleanup()
 		if cli.List.Merged {
-			return execListMerged(context.Background(), conn, os.Stdout)
+			return execListMerged(context.Background(), conn, "main", os.Stdout)
 		}
 		return execList(context.Background(), conn, os.Stdout)
 	case "show <id>":
