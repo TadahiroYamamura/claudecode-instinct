@@ -2,8 +2,6 @@ package main
 
 import "math"
 
-type SimilarityFunc func(a, b string) float64
-
 func ngramFreq(s string, n int) map[string]int {
 	runes := []rune(s)
 	freq := make(map[string]int)
