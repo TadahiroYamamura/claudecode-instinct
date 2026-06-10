@@ -1,31 +1,27 @@
 package main
 
 import (
+	"io"
 	"strings"
 	"testing"
 )
 
-// review は個人ブランチにのみ存在する（チームブランチ未マージの）instinct を表示する
-func TestReview_ShowsPendingInstincts(t *testing.T) {
+// listReviewInstincts は個人ブランチにのみ存在するinstinctを返す
+func TestListReviewInstincts_ShowsPendingInstincts(t *testing.T) {
 	ctx, conn := setupTestDB(t)
 
-	// main ブランチに shared レコードを追加してコミット
 	if _, err := insertInstinct(ctx, conn, InsertParams{
 		Content: "already on main", TriggerDesc: "always",
-		Domain: "git", Scope: "global", ObservationCount: 5, ProjectID: "abc123def456",
+		Domain: "git", Scope: "global", ObservationCount: 6, ProjectID: "abc123def456",
 	}); err != nil {
 		t.Fatalf("insert on main: %v", err)
 	}
 	if _, err := conn.ExecContext(ctx, `CALL dolt_commit('-Am', 'test: main instinct')`); err != nil {
 		t.Fatalf("commit on main: %v", err)
 	}
-
-	// personal ブランチを作成して切り替え（main の内容を引き継ぐ）
 	if _, err := conn.ExecContext(ctx, `CALL dolt_checkout('-b', 'personal')`); err != nil {
 		t.Fatalf("checkout personal: %v", err)
 	}
-
-	// personal ブランチのみに新規レコードを追加（medium 閾値以上）
 	if _, err := insertInstinct(ctx, conn, InsertParams{
 		Content: "pending review instinct", TriggerDesc: "sometimes",
 		Domain: "testing", Scope: "project", ObservationCount: 6, ProjectID: "abc123def456",
@@ -33,92 +29,91 @@ func TestReview_ShowsPendingInstincts(t *testing.T) {
 		t.Fatalf("insert on personal: %v", err)
 	}
 
-	cfg := &InstinctConfig{Confidence: ConfidenceConfig{ReviewMin: 6}}
-	var buf strings.Builder
-	if err := execReview(ctx, conn, cfg, &buf); err != nil {
-		t.Fatalf("execReview: %v", err)
+	rows, err := listReviewInstincts(ctx, conn, "main", 6)
+	if err != nil {
+		t.Fatalf("listReviewInstincts: %v", err)
 	}
-	out := buf.String()
-	if !strings.Contains(out, "pending review instinct") {
-		t.Error("expected pending instinct in review output")
+	found := false
+	for _, r := range rows {
+		if strings.Contains(r.Content, "pending review instinct") {
+			found = true
+		}
+		if strings.Contains(r.Content, "already on main") {
+			t.Error("already-merged instinct should not appear")
+		}
 	}
-	if strings.Contains(out, "already on main") {
-		t.Error("already-merged instinct should not appear in review output")
+	if !found {
+		t.Error("expected pending instinct in results")
 	}
 }
 
-// review は observation_count が medium 閾値未満の instinct を除外する
-func TestReview_ExcludesBelowMediumThreshold(t *testing.T) {
+// listReviewInstincts は observation_count が閾値未満のinstinctを除外する
+func TestListReviewInstincts_ExcludesBelowThreshold(t *testing.T) {
 	ctx, conn := setupTestDB(t)
 
-	if _, err := conn.ExecContext(ctx, `CALL dolt_commit('-Am', 'test: init schema')`); err != nil {
+	if _, err := conn.ExecContext(ctx, `CALL dolt_commit('-Am', 'test: init')`); err != nil {
 		t.Fatalf("commit: %v", err)
 	}
 	if _, err := conn.ExecContext(ctx, `CALL dolt_checkout('-b', 'personal')`); err != nil {
 		t.Fatalf("checkout: %v", err)
 	}
 
-	// medium=6 未満（観察が少なく仮説段階）
-	if _, err := insertInstinct(ctx, conn, InsertParams{
+	insertInstinct(ctx, conn, InsertParams{
 		Content: "tentative instinct", TriggerDesc: "rarely",
 		Domain: "testing", Scope: "project", ObservationCount: 3, ProjectID: "abc123def456",
-	}); err != nil {
-		t.Fatalf("insert tentative: %v", err)
-	}
-	// medium=6 以上（strong → レビュー対象）
-	if _, err := insertInstinct(ctx, conn, InsertParams{
+	})
+	insertInstinct(ctx, conn, InsertParams{
 		Content: "strong instinct", TriggerDesc: "often",
 		Domain: "testing", Scope: "project", ObservationCount: 6, ProjectID: "abc123def456",
-	}); err != nil {
-		t.Fatalf("insert strong: %v", err)
-	}
+	})
 
-	cfg := &InstinctConfig{Confidence: ConfidenceConfig{ReviewMin: 6}}
-	var buf strings.Builder
-	if err := execReview(ctx, conn, cfg, &buf); err != nil {
-		t.Fatalf("execReview: %v", err)
+	rows, err := listReviewInstincts(ctx, conn, "main", 6)
+	if err != nil {
+		t.Fatalf("listReviewInstincts: %v", err)
 	}
-	out := buf.String()
-	if !strings.Contains(out, "strong instinct") {
-		t.Error("expected strong instinct (obs>=6) in review output")
+	for _, r := range rows {
+		if strings.Contains(r.Content, "tentative instinct") {
+			t.Error("tentative instinct (obs<6) should be excluded")
+		}
 	}
-	if strings.Contains(out, "tentative instinct") {
-		t.Error("tentative instinct (obs<6) should be excluded from review")
+	found := false
+	for _, r := range rows {
+		if strings.Contains(r.Content, "strong instinct") {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected strong instinct (obs>=6) in results")
 	}
 }
 
-// review は全 instinct が既にチームブランチにある場合、0件を表示する
-func TestReview_EmptyWhenAllMerged(t *testing.T) {
+// execReview は候補が0件のとき0件メッセージを出力する
+func TestExecReview_ZeroItemsMessage(t *testing.T) {
 	ctx, conn := setupTestDB(t)
 
-	if _, err := insertInstinct(ctx, conn, InsertParams{
-		Content: "merged instinct", TriggerDesc: "always",
-		Domain: "git", Scope: "global", ObservationCount: 1, ProjectID: "abc123def456",
-	}); err != nil {
-		t.Fatalf("insert: %v", err)
-	}
-	if _, err := conn.ExecContext(ctx, `CALL dolt_commit('-Am', 'test: merged')`); err != nil {
-		t.Fatalf("commit on main: %v", err)
+	if _, err := conn.ExecContext(ctx, `CALL dolt_commit('-Am', 'test: init')`); err != nil {
+		t.Fatalf("commit: %v", err)
 	}
 	if _, err := conn.ExecContext(ctx, `CALL dolt_checkout('-b', 'personal')`); err != nil {
 		t.Fatalf("checkout personal: %v", err)
 	}
 
 	var buf strings.Builder
-	if err := execReview(ctx, conn, &InstinctConfig{}, &buf); err != nil {
+	noOpSelector := func(_ []InstinctRow, _ io.Writer) ([]string, error) { return nil, nil }
+	if err := execReview(ctx, conn, &InstinctConfig{}, "personal", "Test", noOpSelector, &buf); err != nil {
 		t.Fatalf("execReview: %v", err)
 	}
 	if !strings.Contains(buf.String(), "0") {
-		t.Errorf("expected 0 pending instincts, got:\n%s", buf.String())
+		t.Errorf("expected 0-items message, got: %s", buf.String())
 	}
 }
 
-// review はconfig で指定したチームブランチを参照する
-func TestReview_UsesConfiguredTeamBranch(t *testing.T) {
+// listReviewInstincts はconfigで指定したチームブランチを参照する
+func TestListReviewInstincts_UsesConfiguredTeamBranch(t *testing.T) {
 	ctx, conn := setupTestDB(t)
 
-	if _, err := conn.ExecContext(ctx, `CALL dolt_commit('-Am', 'test: init schema')`); err != nil {
-		t.Fatalf("commit schema: %v", err)
+	if _, err := conn.ExecContext(ctx, `CALL dolt_commit('-Am', 'test: init')`); err != nil {
+		t.Fatalf("commit: %v", err)
 	}
 	if _, err := conn.ExecContext(ctx, `CALL dolt_checkout('-b', 'team')`); err != nil {
 		t.Fatalf("checkout team: %v", err)
@@ -126,24 +121,22 @@ func TestReview_UsesConfiguredTeamBranch(t *testing.T) {
 	if _, err := conn.ExecContext(ctx, `CALL dolt_checkout('-b', 'personal')`); err != nil {
 		t.Fatalf("checkout personal: %v", err)
 	}
-
-	if _, err := insertInstinct(ctx, conn, InsertParams{
+	insertInstinct(ctx, conn, InsertParams{
 		Content: "personal only", TriggerDesc: "sometimes",
 		Domain: "testing", Scope: "project", ObservationCount: 6, ProjectID: "abc123def456",
-	}); err != nil {
-		t.Fatalf("insert on personal: %v", err)
-	}
+	})
 
-	cfg := &InstinctConfig{
-		Confidence: ConfidenceConfig{ReviewMin: 6},
-		Dolt:       DoltConfig{TeamBranch: "team"},
+	rows, err := listReviewInstincts(ctx, conn, "team", 6)
+	if err != nil {
+		t.Fatalf("listReviewInstincts: %v", err)
 	}
-
-	var buf strings.Builder
-	if err := execReview(ctx, conn, cfg, &buf); err != nil {
-		t.Fatalf("execReview: %v", err)
+	found := false
+	for _, r := range rows {
+		if strings.Contains(r.Content, "personal only") {
+			found = true
+		}
 	}
-	if !strings.Contains(buf.String(), "personal only") {
-		t.Errorf("expected personal instinct in output, got:\n%s", buf.String())
+	if !found {
+		t.Errorf("expected personal instinct in results")
 	}
 }

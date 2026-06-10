@@ -138,20 +138,3 @@ func listReviewInstincts(ctx context.Context, conn *sql.Conn, teamBranch string,
 	}
 	return result, rows.Err()
 }
-
-func execReview(ctx context.Context, conn *sql.Conn, cfg *InstinctConfig, w io.Writer) error {
-	teamBranch := cfg.Dolt.TeamBranch
-	if teamBranch == "" {
-		teamBranch = defaultTeamBranch
-	}
-	minObs := cfg.Confidence.ReviewMin
-	if minObs == 0 {
-		minObs = defaultMediumThreshold
-	}
-	rows, err := listReviewInstincts(ctx, conn, teamBranch, minObs)
-	if err != nil {
-		return err
-	}
-	fmt.Fprintf(w, "%d instinct(s) pending review (not yet on %s)\n", len(rows), teamBranch)
-	return printInstincts(rows, w)
-}

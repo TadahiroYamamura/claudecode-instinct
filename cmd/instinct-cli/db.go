@@ -70,6 +70,17 @@ const createDedupDecisionsTable = `CREATE TABLE dedup_decisions (
 	created_at      TIMESTAMP     DEFAULT CURRENT_TIMESTAMP
 )`
 
+const createReviewQueueTable = `CREATE TABLE review_queue (
+	instinct_id     VARCHAR(64)   PRIMARY KEY,
+	content         TEXT          NOT NULL,
+	trigger_desc    TEXT          NOT NULL,
+	domain          VARCHAR(128),
+	observation_count INT         NOT NULL DEFAULT 0,
+	scope           ENUM('project','global') NOT NULL DEFAULT 'project',
+	submitted_by    VARCHAR(256)  NOT NULL,
+	submitted_at    TIMESTAMP     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+)`
+
 func openDoltDB(dataDir string) (*sql.DB, error) {
 	dsn, err := doltDSNWithGitIdentity(dataDir)
 	if err != nil {
@@ -131,6 +142,7 @@ func setupDB(ctx context.Context, dataDir string) error {
 		"USE " + dbName,
 		createInstinctsTable,
 		createDedupDecisionsTable,
+		createReviewQueueTable,
 	} {
 		if _, err := conn.ExecContext(ctx, stmt); err != nil {
 			return fmt.Errorf("exec %q: %w", stmt[:min(len(stmt), 40)], err)

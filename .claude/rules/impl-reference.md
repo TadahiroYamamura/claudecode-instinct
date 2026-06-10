@@ -94,6 +94,6 @@ dolt:
 | `instinct-cli list --merged` | 個人 + チームの統合一覧（重複排除） |
 | `instinct-cli show <id>` | 指定した instinct の全フィールドを全文表示 |
 | `instinct-cli dedup` | Haiku によるブランチ内 dedup（dedup_decisions に記録 + commit） |
-| `instinct-cli review` | main にない新規 instinct 一覧（レビュー待ちキュー） |
+| `instinct-cli review` | TUI でレビュー候補を選択し review_queue に登録（observation_count >= review_min かつチームブランチ未マージのもの） |
 | `instinct-cli push` | config.user.yml の branch をリモートへ push（branch 未設定はエラー、main へのフォールバックなし） |
 | `instinct-cli pull` | チームブランチと個人ブランチの両方をpull（チーム→個人の順、完了後は個人ブランチに滞留） |

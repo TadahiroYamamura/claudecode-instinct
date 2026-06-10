@@ -170,7 +170,12 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 		if cfg == nil {
 			cfg = &InstinctConfig{}
 		}
-		return execReview(context.Background(), conn, cfg, out)
+		userCfg, err := loadUserConfig(instinctDbDir(projectDir))
+		if err != nil {
+			return err
+		}
+		submittedBy, _ := gitConfigValue("user.name")
+		return execReview(context.Background(), conn, cfg, userCfg.Dolt.Branch, submittedBy, ttyReviewSelector, out)
 	case "push":
 		conn, projectDir, cleanup, err := openProjectConn(cwd)
 		if err != nil {
