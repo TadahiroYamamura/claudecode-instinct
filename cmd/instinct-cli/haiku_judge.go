@@ -17,9 +17,8 @@ var runClaude claudeRunner = func(ctx context.Context, model, prompt string) (st
 	return string(out), err
 }
 
-func makeHaikuJudge(runner claudeRunner) DedupJudge {
-	return func(ctx context.Context, a, b InstinctRow) (DedupDecision, error) {
-		prompt := fmt.Sprintf(`以下の2つのinstinctが意味的に重複しているか判定してください。
+func dedupPrompt(a, b InstinctRow) string {
+	return fmt.Sprintf(`以下の2つのinstinctが意味的に重複しているか判定してください。
 JSONのみ返してください（説明文なし）:
 {"decision":"duplicate"または"distinct","reasoning":"判定理由","similarity":0.0〜1.0}
 
@@ -30,8 +29,11 @@ trigger: %s
 ## instinct B
 content: %s
 trigger: %s`, a.Content, a.TriggerDesc, b.Content, b.TriggerDesc)
+}
 
-		output, err := runner(ctx, dedupModel, prompt)
+func makeHaikuJudge(runner claudeRunner) DedupJudge {
+	return func(ctx context.Context, a, b InstinctRow) (DedupDecision, error) {
+		output, err := runner(ctx, dedupModel, dedupPrompt(a, b))
 		if err != nil {
 			return DedupDecision{}, fmt.Errorf("claude haiku: %w", err)
 		}
