@@ -17,6 +17,8 @@ var instinctDbGitignore []byte
 //go:embed templates/config.tmpl
 var configTemplate string
 
+var parsedConfigTemplate = template.Must(template.New("config").Parse(configTemplate))
+
 type configData struct {
 	ProjectName string
 	Branch      string
@@ -49,8 +51,7 @@ func runSetup(projectDir string, in io.Reader, out io.Writer) error {
 	dbDir := instinctDbDir(projectDir)
 
 	var buf bytes.Buffer
-	tmpl := template.Must(template.New("config").Parse(configTemplate))
-	if err := tmpl.Execute(&buf, configData{
+	if err := parsedConfigTemplate.Execute(&buf, configData{
 		ProjectName: filepath.Base(projectDir),
 		Branch:      branch,
 		TeamBranch:  teamBranch,
