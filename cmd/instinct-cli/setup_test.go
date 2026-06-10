@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,6 +39,35 @@ func TestSetup_CreatesGitignoreInInstinctDb(t *testing.T) {
 		if !strings.Contains(content, entry) {
 			t.Errorf(".gitignore missing %q, got:\n%s", entry, content)
 		}
+	}
+}
+
+// setup実行後にconfig.ymlのdolt.branchが設定される
+func TestSetup_ConfigYmlContainsBranch(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "myproject")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := runSetup(dir); err != nil {
+		t.Fatalf("runSetup: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, ".instinct-db", "config.yml"))
+	if err != nil {
+		t.Fatalf("read config.yml: %v", err)
+	}
+	if !strings.Contains(string(data), "branch:") {
+		t.Errorf("config.yml does not contain branch:, got:\n%s", data)
+	}
+}
+
+// git user.nameが取得できない場合はsetupをエラーにする
+func TestSetup_FailsWhenGitUserNameUnavailable(t *testing.T) {
+	orig := resolveGitUserName
+	resolveGitUserName = func() (string, error) { return "", errors.New("no git config") }
+	defer func() { resolveGitUserName = orig }()
+
+	if err := runSetup(t.TempDir()); err == nil {
+		t.Error("expected error when git user.name unavailable")
 	}
 }
 

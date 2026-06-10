@@ -67,6 +67,7 @@ dedup:
 dolt:
   remote_url: "git@github.com:ORG/REPO.git"
   refs: "refs/dolt/project-name"   # モノレポ対応：プロジェクト固有 namespace
+  branch: tadahiro                 # 個人ブランチ名（setup時にgit config user.nameから自動設定）
 ```
 
 ## instinct-cli サブコマンド
