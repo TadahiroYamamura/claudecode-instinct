@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -61,7 +62,7 @@ func findProjectDirFrom(startDir string) (string, error) {
 	}
 }
 
-func dispatch(args []string, cwd string) error {
+func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 	var cli cliStruct
 	p, err := kong.New(&cli)
 	if err != nil {
@@ -73,7 +74,7 @@ func dispatch(args []string, cwd string) error {
 	}
 	switch kctx.Command() {
 	case "setup":
-		return runSetup(cwd)
+		return runSetup(cwd, in, out)
 	case "insert":
 		conn, projectDir, cleanup, err := openProjectConn(cwd)
 		if err != nil {
@@ -115,7 +116,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	if err := dispatch(os.Args[1:], cwd); err != nil {
+	if err := dispatch(os.Args[1:], cwd, os.Stdin, os.Stdout); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

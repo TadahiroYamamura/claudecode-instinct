@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -66,7 +67,7 @@ func TestCLI_ListCommand_TruncatesLongContent(t *testing.T) {
 func TestDispatch_NoArgs_ReturnsUsageErrorNotProjectDirError(t *testing.T) {
 	dir := t.TempDir() // .instinct-dbが存在しないディレクトリ
 
-	err := dispatch([]string{}, dir)
+	err := dispatch([]string{}, dir, strings.NewReader(""), io.Discard)
 
 	if err == nil {
 		t.Fatal("expected error for no args")
@@ -80,7 +81,7 @@ func TestDispatch_NoArgs_ReturnsUsageErrorNotProjectDirError(t *testing.T) {
 func TestCLI_SetupCommand_CreatesInstinctDb(t *testing.T) {
 	dir := t.TempDir()
 
-	if err := dispatch([]string{"setup"}, dir); err != nil {
+	if err := dispatch([]string{"setup"}, dir, strings.NewReader("\n\n\n"), io.Discard); err != nil {
 		t.Fatalf("dispatch: %v", err)
 	}
 

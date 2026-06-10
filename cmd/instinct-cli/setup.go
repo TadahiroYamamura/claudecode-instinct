@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	_ "embed"
+	"io"
 	"os"
 	"path/filepath"
 	"text/template"
@@ -18,20 +19,30 @@ var configTemplate string
 type configData struct {
 	ProjectName string
 	Branch      string
+	TeamBranch  string
 	RemoteURL   string
 }
 
-func runSetup(projectDir string) error {
+func runSetup(projectDir string, in io.Reader, out io.Writer) error {
 	if err := setupDB(context.Background(), instinctDataDir(projectDir)); err != nil {
 		return err
 	}
 
-	branch, err := gitConfigValue("user.name")
+	defaultBranch, _ := gitConfigValue("user.name")
+	defaultRemote, _ := gitOutput(projectDir, "remote", "get-url", "origin")
+
+	branch, err := promptWithDefault(in, out, "Branch", defaultBranch)
 	if err != nil {
 		return err
 	}
-
-	remoteURL, _ := gitOutput(projectDir, "remote", "get-url", "origin")
+	teamBranch, err := promptWithDefault(in, out, "Team branch", "main")
+	if err != nil {
+		return err
+	}
+	remoteURL, err := promptWithDefault(in, out, "Remote URL", defaultRemote)
+	if err != nil {
+		return err
+	}
 
 	dbDir := instinctDbDir(projectDir)
 
@@ -40,6 +51,7 @@ func runSetup(projectDir string) error {
 	if err := tmpl.Execute(&buf, configData{
 		ProjectName: filepath.Base(projectDir),
 		Branch:      branch,
+		TeamBranch:  teamBranch,
 		RemoteURL:   remoteURL,
 	}); err != nil {
 		return err

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,7 +13,7 @@ import (
 func TestSetup_CreatesDoltDBDirectory(t *testing.T) {
 	dir := t.TempDir()
 
-	if err := runSetup(dir); err != nil {
+	if err := runSetup(dir, strings.NewReader("\n\n\n"), io.Discard); err != nil {
 		t.Fatalf("runSetup: %v", err)
 	}
 
@@ -26,7 +27,7 @@ func TestSetup_CreatesDoltDBDirectory(t *testing.T) {
 func TestSetup_CreatesGitignoreInInstinctDb(t *testing.T) {
 	dir := t.TempDir()
 
-	if err := runSetup(dir); err != nil {
+	if err := runSetup(dir, strings.NewReader("\n\n\n"), io.Discard); err != nil {
 		t.Fatalf("runSetup: %v", err)
 	}
 
@@ -48,7 +49,7 @@ func TestSetup_ConfigYmlContainsBranch(t *testing.T) {
 	if err := os.Mkdir(dir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	if err := runSetup(dir); err != nil {
+	if err := runSetup(dir, strings.NewReader("\n\n\n"), io.Discard); err != nil {
 		t.Fatalf("runSetup: %v", err)
 	}
 	data, err := os.ReadFile(filepath.Join(dir, ".instinct-db", "config.yml"))
@@ -63,7 +64,7 @@ func TestSetup_ConfigYmlContainsBranch(t *testing.T) {
 // setup実行後にconfig.ymlのdolt.team_branchがmainに設定される
 func TestSetup_ConfigYmlContainsTeamBranch(t *testing.T) {
 	dir := t.TempDir()
-	if err := runSetup(dir); err != nil {
+	if err := runSetup(dir, strings.NewReader("\n\n\n"), io.Discard); err != nil {
 		t.Fatalf("runSetup: %v", err)
 	}
 	data, err := os.ReadFile(filepath.Join(dir, ".instinct-db", "config.yml"))
@@ -81,7 +82,7 @@ func TestSetup_ConfigYmlContainsRemoteURL(t *testing.T) {
 	mustRun(t, "git", "-C", dir, "init")
 	mustRun(t, "git", "-C", dir, "remote", "add", "origin", "https://github.com/test/repo.git")
 
-	if err := runSetup(dir); err != nil {
+	if err := runSetup(dir, strings.NewReader("\n\n\n"), io.Discard); err != nil {
 		t.Fatalf("runSetup: %v", err)
 	}
 	data, err := os.ReadFile(filepath.Join(dir, ".instinct-db", "config.yml"))
@@ -100,6 +101,24 @@ func mustRun(t *testing.T, name string, args ...string) {
 	}
 }
 
+// 対話入力でブランチ名を変更できる
+func TestSetup_UsesInteractiveInputForBranch(t *testing.T) {
+	dir := t.TempDir()
+	// branch=custombranch、残りはデフォルト
+	in := strings.NewReader("custombranch\n\n\n")
+
+	if err := runSetup(dir, in, io.Discard); err != nil {
+		t.Fatalf("runSetup: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, ".instinct-db", "config.yml"))
+	if err != nil {
+		t.Fatalf("read config.yml: %v", err)
+	}
+	if !strings.Contains(string(data), "branch: custombranch") {
+		t.Errorf("config.yml should have custombranch, got:\n%s", data)
+	}
+}
+
 // config.ymlのrefsがディレクトリ名から自動推定される
 func TestSetup_ConfigYmlContainsRefsBasedOnDirName(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "myproject")
@@ -107,7 +126,7 @@ func TestSetup_ConfigYmlContainsRefsBasedOnDirName(t *testing.T) {
 		t.Fatalf("mkdir: %v", err)
 	}
 
-	if err := runSetup(dir); err != nil {
+	if err := runSetup(dir, strings.NewReader("\n\n\n"), io.Discard); err != nil {
 		t.Fatalf("runSetup: %v", err)
 	}
 
