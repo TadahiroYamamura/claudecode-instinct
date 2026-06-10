@@ -75,3 +75,26 @@ func TestListInstincts_ReturnsDomain(t *testing.T) {
 		t.Errorf("domain = %q", rows[0].Domain)
 	}
 }
+
+func TestListInstincts_ReturnsObservationCount(t *testing.T) {
+	ctx, conn := setupTestDB(t)
+
+	if err := insertInstinct(ctx, conn, InsertParams{
+		Content:          "コミット前にlintを実行する",
+		TriggerDesc:      "git commit時",
+		Domain:           "git",
+		Scope:            "project",
+		ObservationCount: 7,
+		ProjectID:        "abc123def456",
+	}); err != nil {
+		t.Fatalf("insertInstinct: %v", err)
+	}
+
+	rows, err := listInstincts(ctx, conn)
+	if err != nil {
+		t.Fatalf("listInstincts: %v", err)
+	}
+	if rows[0].ObservationCount != 7 {
+		t.Errorf("observation_count = %d", rows[0].ObservationCount)
+	}
+}

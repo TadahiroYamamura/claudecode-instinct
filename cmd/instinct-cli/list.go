@@ -7,13 +7,14 @@ import (
 )
 
 type InstinctRow struct {
-	Content     string
-	TriggerDesc string
-	Domain      string
+	Content          string
+	TriggerDesc      string
+	Domain           string
+	ObservationCount int
 }
 
 func listInstincts(ctx context.Context, conn *sql.Conn) ([]InstinctRow, error) {
-	rows, err := conn.QueryContext(ctx, "SELECT content, trigger_desc, domain FROM instincts ORDER BY created_at DESC")
+	rows, err := conn.QueryContext(ctx, "SELECT content, trigger_desc, domain, observation_count FROM instincts ORDER BY created_at DESC")
 	if err != nil {
 		return nil, fmt.Errorf("list instincts: %w", err)
 	}
@@ -22,7 +23,7 @@ func listInstincts(ctx context.Context, conn *sql.Conn) ([]InstinctRow, error) {
 	var result []InstinctRow
 	for rows.Next() {
 		var r InstinctRow
-		if err := rows.Scan(&r.Content, &r.TriggerDesc, &r.Domain); err != nil {
+		if err := rows.Scan(&r.Content, &r.TriggerDesc, &r.Domain, &r.ObservationCount); err != nil {
 			return nil, fmt.Errorf("scan: %w", err)
 		}
 		result = append(result, r)
