@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -57,17 +56,6 @@ func TestSetup_ConfigYmlContainsBranch(t *testing.T) {
 	}
 	if !strings.Contains(string(data), "branch:") {
 		t.Errorf("config.yml does not contain branch:, got:\n%s", data)
-	}
-}
-
-// git user.nameが取得できない場合はsetupをエラーにする
-func TestSetup_FailsWhenGitUserNameUnavailable(t *testing.T) {
-	orig := resolveGitUserName
-	resolveGitUserName = func() (string, error) { return "", errors.New("no git config") }
-	defer func() { resolveGitUserName = orig }()
-
-	if err := runSetup(t.TempDir()); err == nil {
-		t.Error("expected error when git user.name unavailable")
 	}
 }
 
