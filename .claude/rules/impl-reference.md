@@ -77,6 +77,7 @@ dolt:
 | `instinct-cli insert` | instinct を INSERT |
 | `instinct-cli list` | 一覧表示 |
 | `instinct-cli list --merged` | 個人 + チームの統合一覧（重複排除） |
+| `instinct-cli show <id>` | 指定した instinct の全フィールドを全文表示 |
 | `instinct-cli dedup` | Haiku によるデータブランチ内 dedup |
 | `instinct-cli dedup --cross-branch` | 複数個人ブランチ横断 dedup |
 | `instinct-cli review` | main にない新規 instinct 一覧（レビュー待ちキュー） |
