@@ -7,7 +7,7 @@ import (
 func TestListInstincts_ReturnsInsertedRecord(t *testing.T) {
 	ctx, conn := setupTestDB(t)
 
-	if err := insertInstinct(ctx, conn, InsertParams{
+	if _, err := insertInstinct(ctx, conn, InsertParams{
 		Content:          "テスト前に仕様を確認する",
 		TriggerDesc:      "テスト実行時",
 		Domain:           "testing",
@@ -65,7 +65,7 @@ func TestListInstincts_OrderedNewestFirst(t *testing.T) {
 func TestListInstincts_ReturnsAllFields(t *testing.T) {
 	ctx, conn := setupTestDB(t)
 
-	if err := insertInstinct(ctx, conn, InsertParams{
+	if _, err := insertInstinct(ctx, conn, InsertParams{
 		Content:          "コミット前にlintを実行する",
 		TriggerDesc:      "git commit時",
 		Domain:           "git",

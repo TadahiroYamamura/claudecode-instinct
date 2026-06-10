@@ -11,7 +11,7 @@ import (
 func TestCLI_ListCommand_PrintsInsertedRecord(t *testing.T) {
 	ctx, conn := setupTestDB(t)
 
-	if err := insertInstinct(ctx, conn, InsertParams{
+	if _, err := insertInstinct(ctx, conn, InsertParams{
 		Content:          "git push前にテストを実行する",
 		TriggerDesc:      "git push時",
 		Domain:           "git",
