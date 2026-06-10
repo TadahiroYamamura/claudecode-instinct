@@ -2,12 +2,25 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/alecthomas/kong"
 )
+
+func openProjectConn(cwd string) (*sql.Conn, string, func(), error) {
+	projectDir, err := findProjectDirFrom(cwd)
+	if err != nil {
+		return nil, "", nil, err
+	}
+	conn, cleanup, err := openConn(context.Background(), instinctDataDir(projectDir))
+	if err != nil {
+		return nil, "", nil, err
+	}
+	return conn, projectDir, cleanup, nil
+}
 
 type setupCmd struct{}
 
@@ -18,7 +31,6 @@ type cliStruct struct {
 	Insert insertFlags `cmd:"" help:"Insert an instinct"`
 	List   listCmd     `cmd:"" help:"List instincts"`
 }
-
 
 func instinctDbDir(projectDir string) string {
 	return filepath.Join(projectDir, ".instinct-db")
@@ -56,11 +68,7 @@ func dispatch(args []string, cwd string) error {
 	case "setup":
 		return runSetup(cwd)
 	case "insert":
-		projectDir, err := findProjectDirFrom(cwd)
-		if err != nil {
-			return err
-		}
-		conn, cleanup, err := openConn(context.Background(), instinctDataDir(projectDir))
+		conn, projectDir, cleanup, err := openProjectConn(cwd)
 		if err != nil {
 			return err
 		}
@@ -69,11 +77,7 @@ func dispatch(args []string, cwd string) error {
 			return resolveProjectID(projectDir)
 		})
 	case "list":
-		projectDir, err := findProjectDirFrom(cwd)
-		if err != nil {
-			return err
-		}
-		conn, cleanup, err := openConn(context.Background(), instinctDataDir(projectDir))
+		conn, _, cleanup, err := openProjectConn(cwd)
 		if err != nil {
 			return err
 		}
