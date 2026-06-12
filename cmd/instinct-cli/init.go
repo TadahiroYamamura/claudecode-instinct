@@ -9,8 +9,9 @@ import (
 )
 
 type initParams struct {
-	Branch string
-	Yes    bool
+	Branch     string
+	TeamBranch string
+	Yes        bool
 }
 
 func execInit(projectDir string, params initParams, in io.Reader, out io.Writer) error {
@@ -37,6 +38,11 @@ func execInit(projectDir string, params initParams, in io.Reader, out io.Writer)
 	}
 	branch = sanitizeBranchName(branch)
 
+	teamBranch, err := resolve(params.TeamBranch, defaultTeamBranch, "Team branch")
+	if err != nil {
+		return err
+	}
+
 	dbDir := instinctDbDir(projectDir)
 	dataDir := instinctDataDir(projectDir)
 
@@ -54,7 +60,7 @@ func execInit(projectDir string, params initParams, in io.Reader, out io.Writer)
 		return err
 	}
 
-	if err := writeTeamConfig(dbDir, "", defaultTeamBranch, ""); err != nil {
+	if err := writeTeamConfig(dbDir, "", teamBranch, ""); err != nil {
 		return err
 	}
 	if err := writeUserConfig(dbDir, branch); err != nil {

@@ -43,8 +43,9 @@ type setupCmd struct {
 }
 
 type initCmd struct {
-	Yes    bool   `kong:"short='y',help='Accept all defaults without prompting'"`
-	Branch string `kong:"name='branch',short='b',help='Personal branch name (default: git config user.name)'"`
+	Yes        bool   `kong:"short='y',help='Accept all defaults without prompting'"`
+	Branch     string `kong:"name='branch',short='b',help='Personal branch name (default: git config user.name)'"`
+	TeamBranch string `kong:"name='team-branch',help='Team branch name (default: main)'"`
 }
 
 type listCmd struct {
@@ -120,7 +121,7 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 	}
 	switch kctx.Command() {
 	case "init":
-		return execInit(cwd, initParams{Branch: cli.Init.Branch, Yes: cli.Init.Yes}, in, out)
+		return execInit(cwd, initParams{Branch: cli.Init.Branch, TeamBranch: cli.Init.TeamBranch, Yes: cli.Init.Yes}, in, out)
 	case "setup":
 		return runSetup(cwd, cli.Setup, in, out)
 	case "insert":

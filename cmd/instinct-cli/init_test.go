@@ -72,6 +72,24 @@ func TestInit_CreatesPersonalBranch(t *testing.T) {
 	}
 }
 
+// config.team.ymlのdolt.team_branchをフラグで指定できる
+func TestInit_TeamBranchFlagIsReflectedInTeamConfig(t *testing.T) {
+	dir := t.TempDir()
+	mustRun(t, "git", "-C", dir, "init")
+
+	if err := execInit(dir, initParams{TeamBranch: "develop", Yes: true}, nil, io.Discard); err != nil {
+		t.Fatalf("execInit: %v", err)
+	}
+
+	cfg, err := loadConfig(filepath.Join(dir, ".instinct-db"))
+	if err != nil {
+		t.Fatalf("loadConfig: %v", err)
+	}
+	if cfg.Dolt.TeamBranch != "develop" {
+		t.Errorf("dolt.team_branch: got %q, want develop", cfg.Dolt.TeamBranch)
+	}
+}
+
 // 対話入力でブランチ名を指定できる
 func TestInit_UsesInteractiveInputForBranch(t *testing.T) {
 	dir := t.TempDir()
