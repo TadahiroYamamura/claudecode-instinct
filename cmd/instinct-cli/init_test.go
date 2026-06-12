@@ -8,6 +8,20 @@ import (
 	"testing"
 )
 
+// dispatch(["init"])がexecInitにルーティングされ.instinct-db/dataを作成する
+func TestDispatch_InitCommand_CreatesInstinctDb(t *testing.T) {
+	dir := t.TempDir()
+	mustRun(t, "git", "-C", dir, "init")
+
+	if err := dispatch([]string{"init", "-y"}, dir, nil, io.Discard); err != nil {
+		t.Fatalf("dispatch init: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(dir, ".instinct-db", "data")); os.IsNotExist(err) {
+		t.Error(".instinct-db/data/ was not created")
+	}
+}
+
 // initはgit remoteが未設定でも.instinct-db/dataを作成できる
 func TestInit_CreatesDoltDBWithoutRemote(t *testing.T) {
 	dir := t.TempDir()

@@ -42,6 +42,11 @@ type setupCmd struct {
 	RemoteURL  string `kong:"name='remote-url',short='r',help='Remote URL (default: git remote get-url origin)'"`
 }
 
+type initCmd struct {
+	Yes    bool   `kong:"short='y',help='Accept all defaults without prompting'"`
+	Branch string `kong:"name='branch',short='b',help='Personal branch name (default: git config user.name)'"`
+}
+
 type listCmd struct {
 	Merged bool `kong:"name='merged',help='Include main branch instincts (deduped by ID)'"`
 }
@@ -60,6 +65,7 @@ type pushCmd struct{}
 type pullCmd struct{}
 
 type cliStruct struct {
+	Init   initCmd     `cmd:"" help:"Initialize .instinct-db locally (no remote required)"`
 	Setup  setupCmd    `cmd:"" help:"Initialize .instinct-db in current directory"`
 	Insert insertFlags `cmd:"" help:"Insert an instinct"`
 	List   listCmd     `cmd:"" help:"List instincts"`
@@ -113,6 +119,8 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 		return err
 	}
 	switch kctx.Command() {
+	case "init":
+		return execInit(cwd, initParams{Branch: cli.Init.Branch, Yes: cli.Init.Yes}, in, out)
 	case "setup":
 		return runSetup(cwd, cli.Setup, in, out)
 	case "insert":
