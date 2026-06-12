@@ -120,16 +120,16 @@ instinct-cli pull
 同一 GitHub リポジトリに複数プロジェクトがある場合、`config.yml` の `dolt.refs` でプロジェクトごとに異なる namespace を設定する。
 
 ```yaml
-# oncall-platform の config.yml
+# our-project の config.yml
 dolt:
-  refs: "refs/dolt/oncall-platform"
+  refs: "refs/dolt/our-project"
 
-# oncall-flutter の config.yml
+# their-project の config.yml
 dolt:
-  refs: "refs/dolt/oncall-flutter"
+  refs: "refs/dolt/their-project"
 ```
 
-これにより `refs/dolt/oncall-platform/<branch>` と `refs/dolt/oncall-flutter/<branch>` に分離されて格納される。
+これにより `refs/dolt/our-project/<branch>` と `refs/dolt/their-project/<branch>` に分離されて格納される。
 
 ---
 

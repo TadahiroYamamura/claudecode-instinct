@@ -12,8 +12,8 @@
 - [x] instinct-cli 実装（Go + dolthub/driver）
 - [x] hooks.json / plugin.json 作成
 - [x] SessionStart フックで observer-loop.sh を自動起動（start-observer.sh）
-- [x] oncall-platform への適用・動作確認
+- [x] project への適用・動作確認
 
 ## 完了条件
 
-oncall-platform で実際にツール使用が観察され、instinct が Dolt に自動挿入される。
+project で実際にツール使用が観察され、instinct が Dolt に自動挿入される。
