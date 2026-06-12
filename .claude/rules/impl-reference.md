@@ -37,7 +37,9 @@ CREATE TABLE dedup_decisions (
   trigger_b       TEXT          NOT NULL,
   decision        ENUM('duplicate','distinct') NOT NULL,
   reasoning       TEXT,
-  similarity      DECIMAL(4,3),
+  sim_bigram      DECIMAL(4,3),
+  sim_trigram     DECIMAL(4,3),
+  sim_overlap     DECIMAL(4,3),
   decided_by      ENUM('agent','human') NOT NULL DEFAULT 'agent',
   human_label     ENUM('correct','wrong'),  -- 人間による事後訂正（ML訓練データ用）
   source_branch_a VARCHAR(128),
@@ -47,7 +49,11 @@ CREATE TABLE dedup_decisions (
 );
 ```
 
-## config.yml 構造
+## 設定ファイル構造
+
+設定は2ファイルに分割されている。
+
+### config.team.yml（Git管理・チーム共有）
 
 ```yaml
 observer:
@@ -56,29 +62,38 @@ observer:
   active_hours: "800-2300"
 
 confidence:
-  thresholds:
-    low: 3        # 3-5件 → confidence 0.5
-    medium: 6     # 6-10件 → confidence 0.7
-    high: 11      # 11件以上 → confidence 0.85
+  review_min: 6   # この観察数以上のinstinctのみreviewコマンドに表示する
 
 dedup:
   auto_run_before_push: false
+  similarity_threshold: 0.15   # いずれかのモデルがこの値以上のペアのみHaikuに送る
 
 dolt:
-  remote_url: "git@github.com:ORG/REPO.git"
-  refs: "refs/dolt/project-name"   # モノレポ対応：プロジェクト固有 namespace
+  refs: "refs/dolt/project-name/"  # モノレポ対応：プロジェクト固有 namespace（setup時にディレクトリ名から自動設定）
+  team_branch: main                # チームブランチ名（list --merged の参照先）
+  remote_url: "git@github.com:ORG/REPO.git"  # push/pull先（setup時にgit remote origin urlから自動設定）
 ```
+
+### config.user.yml（gitignore対象・ユーザー固有）
+
+```yaml
+dolt:
+  branch: tadahiro  # 個人ブランチ名（setup時にgit config user.nameから自動設定、スペースはハイフンに変換）
+```
+
+**config.user.yml が存在しない = setup 未実施 → エラー**（フォールバックなし）
 
 ## instinct-cli サブコマンド
 
 | コマンド | 説明 |
 |---------|------|
-| `instinct-cli setup` | Dolt DB 初期化 + リモート設定 |
-| `instinct-cli insert` | instinct を INSERT |
+| `instinct-cli setup [-y]` | Dolt DB 初期化 + config.yml 生成（対話形式、`-y` で非対話） |
+| `instinct-cli insert` | instinct を working set に INSERT（commit しない） |
+| `instinct-cli commit [-m msg]` | working set を Dolt commit として記録（observer-loop.sh がバッチ後に呼ぶ） |
 | `instinct-cli list` | 一覧表示 |
 | `instinct-cli list --merged` | 個人 + チームの統合一覧（重複排除） |
-| `instinct-cli dedup` | Haiku によるデータブランチ内 dedup |
-| `instinct-cli dedup --cross-branch` | 複数個人ブランチ横断 dedup |
-| `instinct-cli review` | main にない新規 instinct 一覧（レビュー待ちキュー） |
-| `instinct-cli push` | CALL dolt_push() |
-| `instinct-cli pull` | CALL dolt_pull() |
+| `instinct-cli show <id>` | 指定した instinct の全フィールドを全文表示 |
+| `instinct-cli dedup` | Haiku によるブランチ内 dedup（dedup_decisions に記録 + commit） |
+| `instinct-cli review` | TUI でレビュー候補を選択し review_queue に登録（observation_count >= review_min かつチームブランチ未マージのもの） |
+| `instinct-cli push` | config.user.yml の branch をリモートへ push（branch 未設定はエラー、main へのフォールバックなし） |
+| `instinct-cli pull` | チームブランチと個人ブランチの両方をpull（チーム→個人の順、完了後は個人ブランチに滞留） |

@@ -1,17 +1,143 @@
 package main
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
 
+
+// siblingワークツリーはsetup前にメインの.instinct-dbを誤発見しない
+func TestFindProjectDirFrom_SiblingWorktree_NotFoundBeforeSetup(t *testing.T) {
+	mainDir := t.TempDir()
+	mustRun(t, "git", "-C", mainDir, "init")
+	mustRun(t, "git", "-C", mainDir, "config", "user.email", "test@test.com")
+	mustRun(t, "git", "-C", mainDir, "config", "user.name", "Test")
+	mustRun(t, "git", "-C", mainDir, "commit", "--allow-empty", "-m", "init")
+	if err := os.MkdirAll(filepath.Join(mainDir, ".instinct-db"), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	// sibling: mainDirの外に作成
+	siblingDir := filepath.Join(t.TempDir(), "project-feature")
+	mustRun(t, "git", "-C", mainDir, "worktree", "add", "-b", "feature", siblingDir)
+
+	_, err := findProjectDirFrom(siblingDir)
+	if err == nil {
+		t.Error("sibling worktree should not find main worktree's .instinct-db before setup")
+	}
+}
+
+// siblingワークツリーはsetup後に自分の.instinct-dbを発見する
+func TestFindProjectDirFrom_SiblingWorktree_FindsOwnAfterSetup(t *testing.T) {
+	mainDir := t.TempDir()
+	mustRun(t, "git", "-C", mainDir, "init")
+	mustRun(t, "git", "-C", mainDir, "config", "user.email", "test@test.com")
+	mustRun(t, "git", "-C", mainDir, "config", "user.name", "Test")
+	mustRun(t, "git", "-C", mainDir, "commit", "--allow-empty", "-m", "init")
+
+	siblingDir := filepath.Join(t.TempDir(), "project-feature")
+	mustRun(t, "git", "-C", mainDir, "worktree", "add", "-b", "feature", siblingDir)
+
+	// setup後: siblingに固有の.instinct-dbを作成
+	if err := os.MkdirAll(filepath.Join(siblingDir, ".instinct-db"), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	found, err := findProjectDirFrom(siblingDir)
+	if err != nil {
+		t.Fatalf("sibling worktree should find own .instinct-db after setup: %v", err)
+	}
+	if found != siblingDir {
+		t.Errorf("expected %s, got %s", siblingDir, found)
+	}
+}
+
+// in-treeワークツリーからgit境界を越えて親の.instinct-dbを誤発見しない
+func TestFindProjectDirFrom_DoesNotCrossIntoParentWorktree(t *testing.T) {
+	mainDir := t.TempDir()
+	mustRun(t, "git", "-C", mainDir, "init")
+	mustRun(t, "git", "-C", mainDir, "config", "user.email", "test@test.com")
+	mustRun(t, "git", "-C", mainDir, "config", "user.name", "Test")
+	mustRun(t, "git", "-C", mainDir, "commit", "--allow-empty", "-m", "init")
+
+	if err := os.MkdirAll(filepath.Join(mainDir, ".instinct-db"), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	// in-treeワークツリー: mainDir 配下に作成
+	worktreeDir := filepath.Join(mainDir, "worktrees", "feature")
+	mustRun(t, "git", "-C", mainDir, "worktree", "add", "-b", "feature", worktreeDir)
+
+	// worktree 内から探索しても親の .instinct-db は見えてはいけない
+	_, err := findProjectDirFrom(worktreeDir)
+	if err == nil {
+		t.Error("should not find parent worktree's .instinct-db across git boundary")
+	}
+}
+
+// tabwriterによる整形後は生のタブ文字が出力に残らない
+func TestCLI_ListCommand_AlignsColumns(t *testing.T) {
+	ctx, conn := setupTestDB(t)
+
+	for _, content := range []string{"short", "this is much longer content"} {
+		if _, err := insertInstinct(ctx, conn, InsertParams{
+			Content:          content,
+			TriggerDesc:      "trigger",
+			Domain:           "test",
+			Scope:            "project",
+			ObservationCount: 1,
+			ProjectID:        "abc123def456",
+		}); err != nil {
+			t.Fatalf("insertInstinct: %v", err)
+		}
+	}
+
+	var buf strings.Builder
+	if err := execList(ctx, conn, &buf); err != nil {
+		t.Fatalf("execList: %v", err)
+	}
+	if strings.Contains(buf.String(), "\t") {
+		t.Errorf("expected tabwriter to replace tabs with spaces, got:\n%s", buf.String())
+	}
+}
+
+// 41文字超のcontentは40文字で打ち切られ "..." が付く
+func TestCLI_ListCommand_TruncatesLongContent(t *testing.T) {
+	ctx, conn := setupTestDB(t)
+
+	longContent := strings.Repeat("あ", 41) // 41文字
+
+	if _, err := insertInstinct(ctx, conn, InsertParams{
+		Content:          longContent,
+		TriggerDesc:      "trigger",
+		Domain:           "test",
+		Scope:            "project",
+		ObservationCount: 1,
+		ProjectID:        "abc123def456",
+	}); err != nil {
+		t.Fatalf("insertInstinct: %v", err)
+	}
+
+	var buf strings.Builder
+	if err := execList(ctx, conn, &buf); err != nil {
+		t.Fatalf("execList: %v", err)
+	}
+	if strings.Contains(buf.String(), longContent) {
+		t.Error("expected content to be truncated, but full content appeared")
+	}
+	if !strings.Contains(buf.String(), "...") {
+		t.Error("expected truncation marker '...'")
+	}
+}
+
 // サブコマンドなしのとき.instinct-db探索エラーではなく使用法エラーを返す
 func TestDispatch_NoArgs_ReturnsUsageErrorNotProjectDirError(t *testing.T) {
 	dir := t.TempDir() // .instinct-dbが存在しないディレクトリ
 
-	err := dispatch([]string{}, dir)
+	err := dispatch([]string{}, dir, strings.NewReader(""), io.Discard)
 
 	if err == nil {
 		t.Fatal("expected error for no args")
@@ -21,11 +147,29 @@ func TestDispatch_NoArgs_ReturnsUsageErrorNotProjectDirError(t *testing.T) {
 	}
 }
 
-// dispatch(["setup"], dir)が.instinct-db/data/を作成する
+// dispatchはdedupサブコマンドをexecDedupにルーティングする（instinctが0件なのでjudgeは呼ばれない）
+func TestDispatch_DedupCommand_ZeroPairsWhenEmpty(t *testing.T) {
+	dir := t.TempDir()
+	gitInitWithRemote(t, dir)
+	if err := execSetup(dir, setupParams{Yes: true}, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+
+	var buf strings.Builder
+	if err := dispatch([]string{"dedup"}, dir, nil, &buf); err != nil {
+		t.Fatalf("dedup: %v", err)
+	}
+	if !strings.Contains(buf.String(), "0") {
+		t.Errorf("expected '0 pairs' in output, got: %q", buf.String())
+	}
+}
+
+// dispatch(["setup"], dir)が.instinct-db/data/を作成する（initパス）
 func TestCLI_SetupCommand_CreatesInstinctDb(t *testing.T) {
 	dir := t.TempDir()
+	gitInitWithRemote(t, dir)
 
-	if err := dispatch([]string{"setup"}, dir); err != nil {
+	if err := execSetup(dir, setupParams{Yes: true}, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
 		t.Fatalf("dispatch: %v", err)
 	}
 

@@ -74,6 +74,12 @@ cd /path/to/your-project
 instinct-cli setup
 ```
 
+対話形式で branch / team_branch / remote_url を確認・変更できる。Enter でデフォルト値を採用。`-y` フラグを付けると全項目デフォルトで非対話実行。
+
+```bash
+instinct-cli setup -y   # CI や自動化環境向け
+```
+
 作成されるファイル。
 
 ```
@@ -87,11 +93,26 @@ your-project/
 `config.yml` の初期内容（`instinct-cli setup` が自動生成）。
 
 ```yaml
+observer:
+  enabled: true
+  trigger_every: 20
+  active_hours: "800-2300"
+
+confidence:
+  thresholds:
+    low: 3
+    medium: 6
+    high: 11
+
+dedup:
+  auto_run_before_push: false
+
 dolt:
   refs: refs/dolt/your-project/
+  branch: tadahiro                        # git config user.name から自動取得
+  team_branch: main                       # チームブランチ名
+  remote_url: git@github.com:org/repo.git # git remote origin から自動取得
 ```
-
-`observer.*` / `dolt.remote_url` などの追加設定は Phase 2 以降で対応予定。
 
 ---
 

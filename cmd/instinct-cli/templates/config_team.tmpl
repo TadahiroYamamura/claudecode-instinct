@@ -1,0 +1,16 @@
+observer:
+  enabled: true
+  trigger_every: 20
+  active_hours: "800-2300"
+
+confidence:
+  review_min: 6   # この観察数以上のinstinctのみreviewコマンドに表示する
+
+dedup:
+  auto_run_before_push: false
+  similarity_threshold: 0.15   # いずれかのモデルがこの値未満なら全ペアはHaikuに送らない
+
+dolt:
+  refs: refs/dolt/{{ .ProjectName }}/
+  team_branch: {{ .TeamBranch }}
+  remote_url: {{ .RemoteURL }}

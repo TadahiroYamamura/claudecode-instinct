@@ -9,7 +9,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// InsertParams holds the fields for a new instinct record.
 type InsertParams struct {
 	Content          string
 	TriggerDesc      string
@@ -44,7 +43,7 @@ func execInsert(ctx context.Context, conn *sql.Conn, f insertFlags, projectIDFn 
 	if err != nil {
 		return fmt.Errorf("project id: %w", err)
 	}
-	return insertInstinct(ctx, conn, InsertParams{
+	_, err = insertInstinct(ctx, conn, InsertParams{
 		Content:          f.Content,
 		TriggerDesc:      f.Trigger,
 		Domain:           f.Domain,
@@ -52,9 +51,10 @@ func execInsert(ctx context.Context, conn *sql.Conn, f insertFlags, projectIDFn 
 		ObservationCount: f.Count,
 		ProjectID:        projectID,
 	})
+	return err
 }
 
-func insertInstinct(ctx context.Context, conn *sql.Conn, p InsertParams) error {
+func insertInstinct(ctx context.Context, conn *sql.Conn, p InsertParams) (string, error) {
 	id := uuid.New().String()
 	_, err := conn.ExecContext(ctx,
 		`INSERT INTO instincts (id, content, trigger_desc, domain, scope, observation_count, project_id)
@@ -62,7 +62,7 @@ func insertInstinct(ctx context.Context, conn *sql.Conn, p InsertParams) error {
 		id, p.Content, p.TriggerDesc, p.Domain, p.Scope, p.ObservationCount, p.ProjectID,
 	)
 	if err != nil {
-		return fmt.Errorf("insert instinct: %w", err)
+		return "", fmt.Errorf("insert instinct: %w", err)
 	}
-	return nil
+	return id, nil
 }
