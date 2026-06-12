@@ -1,0 +1,30 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cross-build binaries
+        uses: thatisuday/go-cross-build@v1
+        with:
+          platforms: 'linux/amd64, darwin/amd64, darwin/arm64'
+          package: 'github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli'
+          package_path: 'cmd/instinct-cli'
+          name: 'instinct'
+          compress: 'false'
+          dest: 'build'
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/*
