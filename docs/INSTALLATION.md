@@ -1,11 +1,17 @@
 # インストールガイド
 
+## 対応OS
+
+| OS | アーキテクチャ |
+|----|---------------|
+| Linux | x86_64 (amd64) |
+| macOS | Apple Silicon (arm64) |
+
 ## 前提条件
 
 | 要件 | バージョン | 備考 |
 |------|-----------|------|
 | Claude Code | v2.1 以上 | |
-| Go | 1.22 以上 | `gcc` も必要（CGO ビルド） |
 | git | 任意 | `user.name` / `user.email` の設定が必須 |
 
 git の設定が未済の場合は先に行う。
@@ -15,33 +21,31 @@ git config --global user.name  "Your Name"
 git config --global user.email "you@example.com"
 ```
 
----
+## 1. instinct のインストール
 
-## 1. instinct-cli のビルド
+プラグインのインストール前に `instinct` バイナリをダウンロードして PATH に置く。
 
-プラグインのインストール前に `instinct-cli` バイナリをビルドして PATH に置く。
+**Linux (amd64)**
 
 ```bash
-# リポジトリを取得
-git clone https://github.com/TadahiroYamamura/claudecode-instinct.git
-cd claudecode-instinct/cmd/instinct-cli
+curl -L -o instinct https://github.com/TadahiroYamamura/claudecode-instinct/releases/latest/download/instinct-linux-amd64
+chmod +x instinct
+sudo mv instinct /usr/local/bin/
+```
 
-# ビルド（CGO が必要なため gcc が必要）
-go build -o instinct-cli .
+**macOS (Apple Silicon)**
 
-# PATH の通った場所に配置
-sudo mv instinct-cli /usr/local/bin/
-# または
-mv instinct-cli ~/bin/   # ~/bin が PATH に含まれている場合
+```bash
+curl -L -o instinct https://github.com/TadahiroYamamura/claudecode-instinct/releases/latest/download/instinct-darwin-arm64
+chmod +x instinct
+sudo mv instinct /usr/local/bin/
 ```
 
 動作確認。
 
 ```bash
-instinct-cli --help
+instinct --help
 ```
-
----
 
 ## 2. プラグインのインストール
 
@@ -54,30 +58,19 @@ claude plugin marketplace add TadahiroYamamura/claudecode-instinct
 claude plugin install claudecode-instinct@TadahiroYamamura
 ```
 
-### ローカルパスからインストール（開発中・手元で試す場合）
-
-クローンしたディレクトリをマーケットプレイスとして登録する。
-
-```bash
-claude plugin marketplace add /path/to/claudecode-instinct
-claude plugin install claudecode-instinct@claudecode-instinct
-```
-
----
-
 ## 3. プロジェクトへのセットアップ
 
 instinct を記録したいプロジェクトのルートで一度だけ実行する。`.instinct-db/` が作成される。
 
 ```bash
 cd /path/to/your-project
-instinct-cli setup
+instinct setup
 ```
 
 対話形式で branch / team_branch / remote_url を確認・変更できる。Enter でデフォルト値を採用。`-y` フラグを付けると全項目デフォルトで非対話実行。
 
 ```bash
-instinct-cli setup -y   # CI や自動化環境向け
+instinct setup -y   # CI や自動化環境向け
 ```
 
 作成されるファイル。
@@ -90,7 +83,7 @@ your-project/
     └── config.yml    # プロジェクト固有設定（git 管理）
 ```
 
-`config.yml` の初期内容（`instinct-cli setup` が自動生成）。
+`config.yml` の初期内容（`instinct setup` が自動生成）。
 
 ```yaml
 observer:
@@ -114,8 +107,6 @@ dolt:
   remote_url: git@github.com:org/repo.git # git remote origin から自動取得
 ```
 
----
-
 ## 4. 動作確認
 
 observer-loop は Claude Code セッション開始時に自動起動する（SessionStart フック）。
@@ -129,7 +120,7 @@ claude
 20 ツール操作が蓄積されると observer-loop が自動的に instinct 生成を試みる。
 生成された instinct は次のコマンドで確認できる（`list` サブコマンドは Phase 2 実装予定）。
 
-現時点では `instinct-cli list` が未実装（Phase 2 予定）のため、Dolt CLI で直接確認する。
+現時点では `instinct list` が未実装（Phase 2 予定）のため、Dolt CLI で直接確認する。
 
 ```bash
 dolt --data-dir=.instinct-db/data sql -q "SELECT content, trigger_desc, scope FROM instincts ORDER BY created_at DESC LIMIT 10"
@@ -137,15 +128,18 @@ dolt --data-dir=.instinct-db/data sql -q "SELECT content, trigger_desc, scope FR
 
 Dolt CLI がなければ MySQL クライアント（mysql コマンド）でも接続できる。
 
----
-
 ## アンインストール
 
 ```bash
-# プラグインを削除（GitHub からインストールした場合）
+# バイナリを削除
+rm /usr/local/bin/instinct
+
+# プラグインを削除
 claude plugin uninstall claudecode-instinct@TadahiroYamamura
-# ローカルパスからインストールした場合
-claude plugin uninstall claudecode-instinct@claudecode-instinct
+
+# GitHubからDoltを削除（任意）
+git push origin --delete refs/dolt/<your-project> # 実際のrefsの値は.instinct-db/config_team.ymlを参照してください
+git push origin --delete __dolt_remote_info__
 
 # プロジェクトの DB を削除（任意）
 rm -rf .instinct-db/
