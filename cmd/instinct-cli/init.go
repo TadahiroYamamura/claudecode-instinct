@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"io"
 	"os"
 	"path/filepath"
@@ -12,18 +13,25 @@ type initParams struct {
 }
 
 func execInit(projectDir string, params initParams, _ io.Reader, _ io.Writer) error {
-	if err := os.MkdirAll(instinctDataDir(projectDir), 0o755); err != nil {
-		return err
-	}
+	ctx := context.Background()
+
 	branch := params.Branch
 	if branch == "" {
 		branch, _ = gitConfigValue("user.name")
 	}
+	branch = sanitizeBranchName(branch)
+
 	dbDir := instinctDbDir(projectDir)
+	dataDir := instinctDataDir(projectDir)
+
+	if err := setupDB(ctx, dataDir); err != nil {
+		return err
+	}
+
 	if err := writeTeamConfig(dbDir, "", defaultTeamBranch, ""); err != nil {
 		return err
 	}
-	if err := writeUserConfig(dbDir, sanitizeBranchName(branch)); err != nil {
+	if err := writeUserConfig(dbDir, branch); err != nil {
 		return err
 	}
 	return os.WriteFile(filepath.Join(dbDir, ".gitignore"), instinctDbGitignore, 0o644)

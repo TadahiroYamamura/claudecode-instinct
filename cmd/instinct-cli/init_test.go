@@ -8,6 +8,45 @@ import (
 	"testing"
 )
 
+// initはDolt DBにテーブルを作成し初回commitを記録する
+func TestInit_DBHasTablesAndInitialCommit(t *testing.T) {
+	dir := t.TempDir()
+	mustRun(t, "git", "-C", dir, "init")
+
+	if err := execInit(dir, initParams{Yes: true}, nil, io.Discard); err != nil {
+		t.Fatalf("execInit: %v", err)
+	}
+
+	conn, cleanup, err := openConn(t.Context(), instinctDataDir(dir))
+	if err != nil {
+		t.Fatalf("openConn: %v", err)
+	}
+	defer cleanup()
+
+	for _, table := range []string{"instincts", "dedup_decisions", "review_queue"} {
+		var count int
+		if err := conn.QueryRowContext(t.Context(),
+			"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=? AND table_name=?",
+			dbName, table,
+		).Scan(&count); err != nil {
+			t.Fatalf("query %s: %v", table, err)
+		}
+		if count == 0 {
+			t.Errorf("table %q not found", table)
+		}
+	}
+
+	var commitCount int
+	if err := conn.QueryRowContext(t.Context(),
+		"SELECT COUNT(*) FROM dolt_log",
+	).Scan(&commitCount); err != nil {
+		t.Fatalf("query dolt_log: %v", err)
+	}
+	if commitCount != 1 {
+		t.Errorf("expected 1 commit, got %d", commitCount)
+	}
+}
+
 // dispatch(["init"])がexecInitにルーティングされ.instinct-db/dataを作成する
 func TestDispatch_InitCommand_CreatesInstinctDb(t *testing.T) {
 	dir := t.TempDir()
