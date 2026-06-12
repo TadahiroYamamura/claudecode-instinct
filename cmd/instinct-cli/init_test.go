@@ -66,6 +66,24 @@ func TestInit_WritesTeamConfig(t *testing.T) {
 	}
 }
 
+// initは.instinct-db/.gitignoreを生成する
+func TestInit_CreatesGitignore(t *testing.T) {
+	dir := t.TempDir()
+	mustRun(t, "git", "-C", dir, "init")
+
+	if err := execInit(dir, initParams{Yes: true}, nil, io.Discard); err != nil {
+		t.Fatalf("execInit: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, ".instinct-db", ".gitignore"))
+	if err != nil {
+		t.Fatalf(".instinct-db/.gitignore not created: %v", err)
+	}
+	if string(data) != string(instinctDbGitignore) {
+		t.Errorf(".gitignore content mismatch\n got:  %q\n want: %q", data, instinctDbGitignore)
+	}
+}
+
 // initはconfig.user.ymlにdolt.branchを書き込む
 func TestInit_WritesUserConfig(t *testing.T) {
 	dir := t.TempDir()

@@ -3,6 +3,7 @@ package main
 import (
 	"io"
 	"os"
+	"path/filepath"
 )
 
 type initParams struct {
@@ -22,5 +23,8 @@ func execInit(projectDir string, params initParams, _ io.Reader, _ io.Writer) er
 	if err := writeTeamConfig(dbDir, "", defaultTeamBranch, ""); err != nil {
 		return err
 	}
-	return writeUserConfig(dbDir, sanitizeBranchName(branch))
+	if err := writeUserConfig(dbDir, sanitizeBranchName(branch)); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(dbDir, ".gitignore"), instinctDbGitignore, 0o644)
 }
