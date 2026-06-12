@@ -47,6 +47,31 @@ func TestInit_DBHasTablesAndInitialCommit(t *testing.T) {
 	}
 }
 
+// initは個人ブランチを作成する
+// openProjectConnはconfig.user.ymlを読んでそのブランチにcheckoutする
+func TestInit_CreatesPersonalBranch(t *testing.T) {
+	dir := t.TempDir()
+	mustRun(t, "git", "-C", dir, "init")
+
+	if err := execInit(dir, initParams{Branch: "alice", Yes: true}, nil, io.Discard); err != nil {
+		t.Fatalf("execInit: %v", err)
+	}
+
+	conn, _, cleanup, err := openProjectConn(dir)
+	if err != nil {
+		t.Fatalf("openProjectConn: %v", err)
+	}
+	defer cleanup()
+
+	var branch string
+	if err := conn.QueryRowContext(t.Context(), "SELECT active_branch()").Scan(&branch); err != nil {
+		t.Fatalf("active_branch: %v", err)
+	}
+	if branch != "alice" {
+		t.Errorf("expected branch alice, got %q", branch)
+	}
+}
+
 // dispatch(["init"])がexecInitにルーティングされ.instinct-db/dataを作成する
 func TestDispatch_InitCommand_CreatesInstinctDb(t *testing.T) {
 	dir := t.TempDir()

@@ -28,6 +28,16 @@ func execInit(projectDir string, params initParams, _ io.Reader, _ io.Writer) er
 		return err
 	}
 
+	conn, cleanup, err := openConn(ctx, dataDir)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
+	if _, err := conn.ExecContext(ctx, "CALL dolt_checkout('-b', ?)", branch); err != nil {
+		return err
+	}
+
 	if err := writeTeamConfig(dbDir, "", defaultTeamBranch, ""); err != nil {
 		return err
 	}
