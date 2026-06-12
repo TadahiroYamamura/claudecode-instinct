@@ -72,6 +72,25 @@ func TestInit_CreatesPersonalBranch(t *testing.T) {
 	}
 }
 
+// 対話入力でブランチ名を指定できる
+func TestInit_UsesInteractiveInputForBranch(t *testing.T) {
+	dir := t.TempDir()
+	mustRun(t, "git", "-C", dir, "init")
+
+	in := strings.NewReader("bob\n")
+	if err := execInit(dir, initParams{}, in, io.Discard); err != nil {
+		t.Fatalf("execInit: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, ".instinct-db", "config.user.yml"))
+	if err != nil {
+		t.Fatalf("read config.user.yml: %v", err)
+	}
+	if !strings.Contains(string(data), "branch: bob") {
+		t.Errorf("expected branch: bob, got:\n%s", data)
+	}
+}
+
 // dispatch(["init"])がexecInitにルーティングされ.instinct-db/dataを作成する
 func TestDispatch_InitCommand_CreatesInstinctDb(t *testing.T) {
 	dir := t.TempDir()

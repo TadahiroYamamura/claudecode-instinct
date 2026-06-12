@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"io"
 	"os"
@@ -12,12 +13,27 @@ type initParams struct {
 	Yes    bool
 }
 
-func execInit(projectDir string, params initParams, _ io.Reader, _ io.Writer) error {
+func execInit(projectDir string, params initParams, in io.Reader, out io.Writer) error {
 	ctx := context.Background()
+	defaultBranch, _ := gitConfigValue("user.name")
 
-	branch := params.Branch
-	if branch == "" {
-		branch, _ = gitConfigValue("user.name")
+	var reader *bufio.Reader
+	if in != nil {
+		reader = bufio.NewReader(in)
+	}
+	resolve := func(explicit, defaultVal, label string) (string, error) {
+		if explicit != "" {
+			return explicit, nil
+		}
+		if params.Yes || reader == nil {
+			return defaultVal, nil
+		}
+		return promptWithDefault(reader, out, label, defaultVal)
+	}
+
+	branch, err := resolve(params.Branch, defaultBranch, "Branch")
+	if err != nil {
+		return err
 	}
 	branch = sanitizeBranchName(branch)
 
