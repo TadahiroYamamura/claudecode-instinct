@@ -9,22 +9,45 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    runs-on: ubuntu-latest
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+          - os: macos-13
+            goos: darwin
+            goarch: amd64
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cross-build binaries
-        uses: thatisuday/go-cross-build@v1
+      - uses: actions/setup-go@v5
         with:
-          platforms: 'linux/amd64, darwin/amd64, darwin/arm64'
-          package: 'github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli'
-          package_path: 'cmd/instinct-cli'
-          name: 'instinct'
-          compress: 'false'
-          dest: 'build'
+          go-version-file: cmd/instinct-cli/go.mod
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
+      - name: Build
+        working-directory: cmd/instinct-cli
+        run: go build -o instinct-${{ matrix.goos }}-${{ matrix.goarch }} .
+
+      - uses: actions/upload-artifact@v4
         with:
-          files: build/*
+          name: instinct-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: cmd/instinct-cli/instinct-${{ matrix.goos }}-${{ matrix.goarch }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
