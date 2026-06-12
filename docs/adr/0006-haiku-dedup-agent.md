@@ -19,7 +19,7 @@ dedup を Haiku エージェントが担当し、判定結果を `dedup_decision
 **dedup のフロー**:
 1. `instinct-cli dedup` が対象ブランチの全 instinct を読み込む
 2. Haiku に渡して重複候補を検出させる
-3. 各判定（duplicate / distinct）を `reasoning` と `similarity` とともに `dedup_decisions` に INSERT する
+3. 各判定（duplicate / distinct）を `reasoning` と3モデルのスコア（`sim_bigram`, `sim_trigram`, `sim_overlap`）とともに `dedup_decisions` に INSERT する
 4. duplicate と判定されたペアはマージ（`observation_count` を合算）し、一方を削除する
 
 **クロスブランチ dedup** (`--cross-branch` オプション):

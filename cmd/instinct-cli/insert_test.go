@@ -83,11 +83,11 @@ func TestInsert_SameContentTwiceCreatesTwoRecords(t *testing.T) {
 		ObservationCount: 2,
 		ProjectID:        "abc123def456",
 	}
-	if err := insertInstinct(ctx, conn, params); err != nil {
+	if _, err := insertInstinct(ctx, conn, params); err != nil {
 		t.Fatalf("first insert: %v", err)
 	}
 	params.ObservationCount = 1
-	if err := insertInstinct(ctx, conn, params); err != nil {
+	if _, err := insertInstinct(ctx, conn, params); err != nil {
 		t.Fatalf("second insert: %v", err)
 	}
 
@@ -106,10 +106,29 @@ func TestInsert_SameContentTwiceCreatesTwoRecords(t *testing.T) {
 	}
 }
 
+func TestInsertInstinct_ReturnsGeneratedID(t *testing.T) {
+	ctx, conn := setupTestDB(t)
+
+	id, err := insertInstinct(ctx, conn, InsertParams{
+		Content:          "テスト実行前に仕様を確認する",
+		TriggerDesc:      "テスト実行時",
+		Domain:           "testing",
+		Scope:            "project",
+		ObservationCount: 1,
+		ProjectID:        "abc123def456",
+	})
+	if err != nil {
+		t.Fatalf("insertInstinct: %v", err)
+	}
+	if id == "" {
+		t.Error("expected non-empty ID")
+	}
+}
+
 func TestInsert_StoresInstinct(t *testing.T) {
 	ctx, conn := setupTestDB(t)
 
-	err := insertInstinct(ctx, conn, InsertParams{
+	_, err := insertInstinct(ctx, conn, InsertParams{
 		Content:          "テスト実行前に仕様を確認する",
 		TriggerDesc:      "テスト実行時",
 		Domain:           "testing",

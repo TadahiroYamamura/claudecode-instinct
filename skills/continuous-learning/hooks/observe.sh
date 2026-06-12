@@ -20,11 +20,21 @@ if [ -z "${CLAUDE_PROJECT_DIR:-}" ]; then
   _cwd=$(echo "$INPUT_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('cwd',''))" 2>/dev/null || true)
   if [ -n "$_cwd" ]; then
     CLAUDE_PROJECT_DIR=$(CWD_PATH="$_cwd" python3 -c "
-import os
+import os, subprocess
 path = os.path.abspath(os.environ['CWD_PATH'])
+# git rev-parse --show-toplevel はワークツリーごとに異なる。
+# in-treeワークツリーが親の .instinct-db を誤発見しないよう境界で止める。
+try:
+    r = subprocess.run(['git', 'rev-parse', '--show-toplevel'],
+                       cwd=path, capture_output=True, text=True)
+    git_root = os.path.abspath(r.stdout.strip()) if r.returncode == 0 else None
+except Exception:
+    git_root = None
 while True:
     if os.path.isdir(os.path.join(path, '.instinct-db')):
         print(path); break
+    if git_root and path == git_root:
+        break
     parent = os.path.dirname(path)
     if parent == path: break
     path = parent

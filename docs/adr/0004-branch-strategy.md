@@ -32,6 +32,18 @@ WHERE from_commit = HASHOF('main')
   AND diff_type   = 'added';
 ```
 
+## Implementation Notes
+
+個人ブランチ名は `.instinct-db/config.yml` の `dolt.branch` で管理する。
+
+```yaml
+dolt:
+  branch: tadahiro  # git config user.name から setup 時に自動設定
+```
+
+`instinct-cli setup` 実行時に `git config user.name` を取得してデフォルト値として書き込む。
+取得できない場合は `"me"` にフォールバックする。
+
 ## Consequences
 
 - 未レビューの instinct がチームに自動適用されるリスクがなくなる
