@@ -189,8 +189,8 @@ func TestSetup_ConfigTeamYmlContainsRefsBasedOnDirName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read config.team.yml: %v", err)
 	}
-	if !strings.Contains(string(data), "refs/dolt/myproject/") {
-		t.Errorf("config.team.yml does not contain refs/dolt/myproject/, got:\n%s", data)
+	if !strings.Contains(string(data), "refs/dolt/myproject") {
+		t.Errorf("config.team.yml does not contain refs/dolt/myproject, got:\n%s", data)
 	}
 }
 

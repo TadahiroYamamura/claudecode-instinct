@@ -11,6 +11,6 @@ dedup:
   similarity_threshold: 0.15   # いずれかのモデルがこの値未満なら全ペアはHaikuに送らない
 
 dolt:
-  refs: refs/dolt/{{ .ProjectName }}/
+  refs: {{ .Refs }}
   team_branch: {{ .TeamBranch }}
   remote_url: {{ .RemoteURL }}

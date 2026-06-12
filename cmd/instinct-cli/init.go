@@ -18,5 +18,9 @@ func execInit(projectDir string, params initParams, _ io.Reader, _ io.Writer) er
 	if branch == "" {
 		branch, _ = gitConfigValue("user.name")
 	}
-	return writeUserConfig(instinctDbDir(projectDir), sanitizeBranchName(branch))
+	dbDir := instinctDbDir(projectDir)
+	if err := writeTeamConfig(dbDir, "", defaultTeamBranch, ""); err != nil {
+		return err
+	}
+	return writeUserConfig(dbDir, sanitizeBranchName(branch))
 }

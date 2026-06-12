@@ -27,9 +27,9 @@ var configUserTmpl = template.Must(template.New("config_user").Parse(configUserT
 const defaultTeamBranch = "main"
 
 type teamConfigData struct {
-	ProjectName string
-	TeamBranch  string
-	RemoteURL   string
+	Refs       string
+	TeamBranch string
+	RemoteURL  string
 }
 
 type userConfigData struct {
@@ -173,11 +173,15 @@ func setupInitPath(ctx context.Context, dbDir, dataDir, refs, projectName, branc
 }
 
 func writeTeamConfig(dbDir, projectName, teamBranch, remoteURL string) error {
+	refs := ""
+	if projectName != "" {
+		refs = "refs/dolt/" + projectName
+	}
 	var buf bytes.Buffer
 	if err := configTeamTmpl.Execute(&buf, teamConfigData{
-		ProjectName: projectName,
-		TeamBranch:  teamBranch,
-		RemoteURL:   remoteURL,
+		Refs:       refs,
+		TeamBranch: teamBranch,
+		RemoteURL:  remoteURL,
 	}); err != nil {
 		return err
 	}
