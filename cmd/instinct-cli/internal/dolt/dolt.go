@@ -42,16 +42,18 @@ func (r *Repository) ListInstincts(ctx context.Context) ([]instincts.InstinctRow
 
 func (r *Repository) GetInstinct(ctx context.Context, shortID string) (*instincts.InstinctRow, error) {
 	var row instincts.InstinctRow
+	var createdAt time.Time
 	err := r.conn.QueryRowContext(ctx,
 		"SELECT id, content, trigger_desc, domain, observation_count, scope, created_at FROM instincts WHERE id LIKE ?",
 		shortID+"%",
-	).Scan(&row.ID, &row.Content, &row.TriggerDesc, &row.Domain, &row.ObservationCount, &row.Scope, &row.CreatedAt)
+	).Scan(&row.ID, &row.Content, &row.TriggerDesc, &row.Domain, &row.ObservationCount, &row.Scope, &createdAt)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("instinct %q not found", shortID)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get instinct: %w", err)
 	}
+	row.CreatedAt = createdAt
 	return &row, nil
 }
 
