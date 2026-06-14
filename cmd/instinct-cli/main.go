@@ -148,7 +148,7 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 		if cli.List.Merged {
 			return execListMerged(context.Background(), conn, cfg, os.Stdout)
 		}
-		return execList(context.Background(), conn, os.Stdout)
+		return execList(context.Background(), doltrepo.NewRepository(conn), os.Stdout)
 	case "show <id>":
 		conn, _, cleanup, err := openProjectConn(cwd)
 		if err != nil {

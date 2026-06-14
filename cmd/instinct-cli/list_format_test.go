@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	doltrepo "github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/dolt"
 )
 
 //go:embed testdata/list_golden.txt
@@ -42,7 +44,7 @@ func TestCLI_ListCommand_Format(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	if err := execList(ctx, conn, &buf); err != nil {
+	if err := execList(ctx, doltrepo.NewRepository(conn), &buf); err != nil {
 		t.Fatalf("execList: %v", err)
 	}
 
