@@ -6,3 +6,6 @@
 
 # Dolt DB (git-managed separately via dolt push)
 .instinct-db/data/
+
+# Dolt remote cache (created by tests that use dolt_clone)
+.dolt/
