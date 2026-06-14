@@ -287,8 +287,17 @@ func TestE2E_ReviewFlow(t *testing.T) {
 		t.Fatalf("loadConfig: %v", err)
 	}
 
+	candidates, err := repo.ListReviewInstincts(ctx, "main", cfg.Confidence.ReviewMin)
+	if err != nil {
+		t.Fatalf("ListReviewInstincts: %v", err)
+	}
+	allIDs := make([]string, len(candidates))
+	for i, r := range candidates {
+		allIDs[i] = r.ID[:shortIDLen]
+	}
+
 	var nominateBuf strings.Builder
-	if err := execNominate(ctx, repo, cfg, "alice", "alice", selectAllSelector, &nominateBuf); err != nil {
+	if err := execNominate(ctx, repo, cfg, "alice", "alice", allIDs, &nominateBuf); err != nil {
 		t.Fatalf("nominate: %v", err)
 	}
 	t.Log(nominateBuf.String())

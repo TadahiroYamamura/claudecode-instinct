@@ -68,7 +68,11 @@ type commitCmd struct {
 }
 
 type dedupCmd struct{}
-type nominateCmd struct{}
+
+type nominateCmd struct {
+	IDs []string `arg:"" optional:"" help:"Short IDs to nominate, or 'list' to show candidates"`
+}
+
 type reviewCmd struct{}
 type pushCmd struct{}
 type pullCmd struct{}
@@ -179,7 +183,7 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 		defer cleanup()
 		cfg, _ := loadConfig(instinctDbDir(projectDir))
 		return execDedup(ctx, repo, haikuJudge, similarityThresholdFromConfig(cfg), out)
-	case "nominate":
+	case "nominate", "nominate <ids>":
 		repo, projectDir, cleanup, err := openProjectConn(cwd, defaultRepoFn)
 		if err != nil {
 			return err
@@ -189,12 +193,15 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 		if cfg == nil {
 			cfg = &InstinctConfig{}
 		}
+		if len(cli.Nominate.IDs) == 0 || (len(cli.Nominate.IDs) == 1 && cli.Nominate.IDs[0] == "list") {
+			return execNominateList(ctx, repo, cfg, out)
+		}
 		userCfg, err := loadUserConfig(instinctDbDir(projectDir))
 		if err != nil {
 			return err
 		}
 		submittedBy, _ := gitConfigValue("user.name")
-		return execNominate(ctx, repo, cfg, userCfg.Dolt.Branch, submittedBy, ttyNominateSelector, out)
+		return execNominate(ctx, repo, cfg, userCfg.Dolt.Branch, submittedBy, cli.Nominate.IDs, out)
 	case "review":
 		repo, projectDir, cleanup, err := openProjectConn(cwd, defaultRepoFn)
 		if err != nil {
