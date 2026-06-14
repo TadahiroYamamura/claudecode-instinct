@@ -146,7 +146,7 @@ func TestExecReview_SubmitsSelectedInstincts(t *testing.T) {
 	cfg := &InstinctConfig{Confidence: ConfidenceConfig{ReviewMin: 6}}
 	var buf strings.Builder
 	// selectAllSelector で全件を選択
-	if err := execReview(ctx, conn, cfg, "personal", "Test User", selectAllSelector, &buf); err != nil {
+	if err := execReview(ctx, doltrepo.NewRepository(conn), cfg, "personal", "Test User", selectAllSelector, &buf); err != nil {
 		t.Fatalf("execReview: %v", err)
 	}
 
@@ -174,7 +174,7 @@ func TestExecReview_NoSubmitWhenNoneSelected(t *testing.T) {
 	cfg := &InstinctConfig{Confidence: ConfidenceConfig{ReviewMin: 6}}
 	emptySelector := func(_ []InstinctRow, _ io.Writer) ([]string, error) { return nil, nil }
 
-	if err := execReview(ctx, conn, cfg, "personal", "Test User", emptySelector, io.Discard); err != nil {
+	if err := execReview(ctx, doltrepo.NewRepository(conn), cfg, "personal", "Test User", emptySelector, io.Discard); err != nil {
 		t.Fatalf("execReview: %v", err)
 	}
 

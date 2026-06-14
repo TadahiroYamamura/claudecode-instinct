@@ -186,7 +186,7 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 			return err
 		}
 		submittedBy, _ := gitConfigValue("user.name")
-		return execReview(context.Background(), conn, cfg, userCfg.Dolt.Branch, submittedBy, ttyReviewSelector, out)
+		return execReview(context.Background(), doltrepo.NewRepository(conn), cfg, userCfg.Dolt.Branch, submittedBy, ttyReviewSelector, out)
 	case "push":
 		conn, projectDir, cleanup, err := openProjectConn(cwd)
 		if err != nil {

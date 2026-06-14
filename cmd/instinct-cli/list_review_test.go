@@ -143,7 +143,7 @@ func TestExecReview_ZeroItemsMessage(t *testing.T) {
 
 	var buf strings.Builder
 	noOpSelector := func(_ []InstinctRow, _ io.Writer) ([]string, error) { return nil, nil }
-	if err := execReview(ctx, conn, &InstinctConfig{}, "personal", "Test", noOpSelector, &buf); err != nil {
+	if err := execReview(ctx, doltrepo.NewRepository(conn), &InstinctConfig{}, "personal", "Test", noOpSelector, &buf); err != nil {
 		t.Fatalf("execReview: %v", err)
 	}
 	if !strings.Contains(buf.String(), "0") {

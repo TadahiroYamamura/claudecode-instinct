@@ -2,20 +2,16 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"golang.org/x/term"
-
-	doltrepo "github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/dolt"
 )
 
 type reviewSelector func(rows []InstinctRow, out io.Writer) ([]string, error)
 
-func execReview(ctx context.Context, conn *sql.Conn, cfg *InstinctConfig,
+func execReview(ctx context.Context, repo Repository, cfg *InstinctConfig,
 	personalBranch, submittedBy string, selector reviewSelector, out io.Writer) error {
 
 	teamBranch := cfg.Dolt.TeamBranch
@@ -27,7 +23,7 @@ func execReview(ctx context.Context, conn *sql.Conn, cfg *InstinctConfig,
 		minObs = defaultMediumThreshold
 	}
 
-	rows, err := doltrepo.NewRepository(conn).ListReviewInstincts(ctx, teamBranch, minObs)
+	rows, err := repo.ListReviewInstincts(ctx, teamBranch, minObs)
 	if err != nil {
 		return err
 	}
@@ -55,43 +51,10 @@ func execReview(ctx context.Context, conn *sql.Conn, cfg *InstinctConfig,
 		}
 	}
 
-	if err := submitToReviewQueue(ctx, conn, teamBranch, selected, personalBranch, submittedBy); err != nil {
+	if err := repo.SubmitToReviewQueue(ctx, teamBranch, selected, personalBranch, submittedBy); err != nil {
 		return err
 	}
 	fmt.Fprintf(out, "submitted %d instinct(s) to review_queue on %s\n", len(selected), teamBranch)
-	return nil
-}
-
-func submitToReviewQueue(ctx context.Context, conn *sql.Conn, teamBranch string,
-	rows []InstinctRow, personalBranch, submittedBy string) error {
-
-	if _, err := conn.ExecContext(ctx, "CALL dolt_checkout(?)", teamBranch); err != nil {
-		return fmt.Errorf("checkout %s: %w", teamBranch, err)
-	}
-	defer conn.ExecContext(ctx, "CALL dolt_checkout(?)", personalBranch) //nolint:errcheck
-
-	for _, r := range rows {
-		_, err := conn.ExecContext(ctx, `
-			INSERT INTO review_queue
-			  (instinct_id, content, trigger_desc, domain, observation_count, scope, submitted_by)
-			VALUES (?, ?, ?, ?, ?, ?, ?)
-			ON DUPLICATE KEY UPDATE
-			  submitted_by = VALUES(submitted_by),
-			  submitted_at = CURRENT_TIMESTAMP`,
-			r.ID, r.Content, r.TriggerDesc, r.Domain, r.ObservationCount, r.Scope, submittedBy)
-		if err != nil {
-			return fmt.Errorf("insert review_queue %s: %w", r.ID[:shortIDLen], err)
-		}
-	}
-
-	msg := fmt.Sprintf("review: submit %d instinct(s) by %s", len(rows), submittedBy)
-	if _, err := conn.ExecContext(ctx, "CALL dolt_commit('-Am', ?)", msg); err != nil {
-		// 全行が既存で変更なしの場合は正常終了
-		if strings.Contains(err.Error(), "nothing to commit") {
-			return nil
-		}
-		return fmt.Errorf("commit review_queue: %w", err)
-	}
 	return nil
 }
 

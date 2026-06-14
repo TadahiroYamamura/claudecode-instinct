@@ -22,6 +22,10 @@ func listReviewInstincts(ctx context.Context, conn *sql.Conn, teamBranch string,
 	return doltrepo.NewRepository(conn).ListReviewInstincts(ctx, teamBranch, minObservations)
 }
 
+func submitToReviewQueue(ctx context.Context, conn *sql.Conn, teamBranch string, rows []InstinctRow, personalBranch, submittedBy string) error {
+	return doltrepo.NewRepository(conn).SubmitToReviewQueue(ctx, teamBranch, rows, personalBranch, submittedBy)
+}
+
 func mustRun(t *testing.T, name string, args ...string) {
 	t.Helper()
 	if out, err := exec.Command(name, args...).CombinedOutput(); err != nil {
