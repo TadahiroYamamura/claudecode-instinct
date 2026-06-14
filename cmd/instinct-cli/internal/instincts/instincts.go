@@ -41,4 +41,6 @@ type Repository interface {
 	GetInstinct(ctx context.Context, shortID string) (*InstinctRow, error)
 	ListMergedInstincts(ctx context.Context, teamBranch string) ([]InstinctRow, error)
 	ListReviewInstincts(ctx context.Context, teamBranch string, minObservations int) ([]InstinctRow, error)
+	InsertDedupDecision(ctx context.Context, a, b InstinctRow, d DedupDecision, scores SimilarityScores) error
+	MergeAndDelete(ctx context.Context, winner, loser InstinctRow) error
 }

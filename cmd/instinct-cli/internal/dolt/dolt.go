@@ -112,6 +112,27 @@ func (r *Repository) GetInstinct(ctx context.Context, shortID string) (*instinct
 	return &row, nil
 }
 
+func (r *Repository) InsertDedupDecision(ctx context.Context, a, b instincts.InstinctRow, d instincts.DedupDecision, scores instincts.SimilarityScores) error {
+	_, err := r.conn.ExecContext(ctx, `INSERT INTO dedup_decisions
+		(id, instinct_id_a, instinct_id_b, content_a, content_b, trigger_a, trigger_b, decision, reasoning, sim_bigram, sim_trigram, sim_overlap)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		uuid.New().String(), a.ID, b.ID, a.Content, b.Content, a.TriggerDesc, b.TriggerDesc,
+		d.Decision, d.Reasoning, scores.Bigram, scores.Trigram, scores.Overlap,
+	)
+	return err
+}
+
+func (r *Repository) MergeAndDelete(ctx context.Context, winner, loser instincts.InstinctRow) error {
+	if _, err := r.conn.ExecContext(ctx,
+		"UPDATE instincts SET observation_count = observation_count + ? WHERE id = ?",
+		loser.ObservationCount, winner.ID,
+	); err != nil {
+		return err
+	}
+	_, err := r.conn.ExecContext(ctx, "DELETE FROM instincts WHERE id = ?", loser.ID)
+	return err
+}
+
 func (r *Repository) InsertInstinct(ctx context.Context, p instincts.InsertParams) (string, error) {
 	id := uuid.New().String()
 	_, err := r.conn.ExecContext(ctx,
