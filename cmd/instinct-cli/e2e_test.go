@@ -355,8 +355,17 @@ func TestE2E_ReviewFlow(t *testing.T) {
 		t.Fatalf("2nd user loadConfig: %v", err)
 	}
 
+	queueItems, err := repo2.ListReviewQueue(ctx, "main")
+	if err != nil {
+		t.Fatalf("2nd user ListReviewQueue: %v", err)
+	}
+	allQueueIDs := make([]string, len(queueItems))
+	for i, r := range queueItems {
+		allQueueIDs[i] = r.InstinctID[:shortIDLen]
+	}
+
 	var reviewBuf strings.Builder
-	if err := execReview(ctx, repo2, cfg2, "bob", "bob", selectAllReviewQueueSelector, &reviewBuf); err != nil {
+	if err := execReviewApprove(ctx, repo2, cfg2, "bob", "bob", allQueueIDs, &reviewBuf); err != nil {
 		t.Fatalf("2nd user review: %v", err)
 	}
 	t.Log(reviewBuf.String())
@@ -376,12 +385,12 @@ func TestE2E_ReviewFlow(t *testing.T) {
 		struct{ Branch, RemoteURL string }{Branch: "main", RemoteURL: "git+ssh://git@github.com/TadahiroYamamura/claudecode-tdd.git"}, nil)
 
 	// review_queue が空になっていることを確認
-	queueItems, err := repo2.ListReviewQueue(ctx, "main")
+	remaining, err := repo2.ListReviewQueue(ctx, "main")
 	if err != nil {
-		t.Fatalf("2nd user ListReviewQueue: %v", err)
+		t.Fatalf("2nd user ListReviewQueue after approve: %v", err)
 	}
-	if len(queueItems) != 0 {
-		t.Errorf("2nd user: expected review_queue empty after promotion, got %d items", len(queueItems))
+	if len(remaining) != 0 {
+		t.Errorf("2nd user: expected review_queue empty after promotion, got %d items", len(remaining))
 	}
 }
 
