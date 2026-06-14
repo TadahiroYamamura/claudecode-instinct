@@ -64,6 +64,8 @@ func fakeCloneFail(_ context.Context, _ string, _, _, _ string) error {
 
 func fakeRepoFn(_ *sql.Conn) Repository { return &stubRepository{} }
 
+func doltRepoFn(conn *sql.Conn) Repository { return doltrepo.NewRepository(conn) }
+
 type stubRepository struct {
 	insertInstinct      func(ctx context.Context, p InsertParams) (string, error)
 	listInstincts       func(ctx context.Context) ([]InstinctRow, error)

@@ -100,7 +100,7 @@ func TestDispatch_NoArgs_ReturnsUsageErrorNotProjectDirError(t *testing.T) {
 func TestDispatch_DedupCommand_ZeroPairsWhenEmpty(t *testing.T) {
 	dir := t.TempDir()
 	mustRun(t, "git", "-C", dir, "init")
-	if err := execInit(dir, initParams{Yes: true}, nil, nil); err != nil {
+	if err := execInit(dir, initParams{Yes: true}, nil, nil, doltRepoFn); err != nil {
 		t.Fatalf("execInit: %v", err)
 	}
 
@@ -117,7 +117,7 @@ func TestDispatch_DedupCommand_ZeroPairsWhenEmpty(t *testing.T) {
 func TestDispatch_ConnectCommand_RoutesToExecConnect(t *testing.T) {
 	dir := t.TempDir()
 	mustRun(t, "git", "-C", dir, "init")
-	if err := execInit(dir, initParams{Yes: true}, nil, nil); err != nil {
+	if err := execInit(dir, initParams{Yes: true}, nil, nil, doltRepoFn); err != nil {
 		t.Fatalf("execInit: %v", err)
 	}
 

@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"database/sql"
 	"fmt"
 	"io"
 	"os"
@@ -15,7 +16,7 @@ type initParams struct {
 	Yes        bool
 }
 
-func execInit(projectDir string, params initParams, in io.Reader, out io.Writer) error {
+func execInit(projectDir string, params initParams, in io.Reader, out io.Writer, repoFn func(*sql.Conn) Repository) error {
 	ctx := context.Background()
 	defaultBranch, _ := gitConfigValue("user.name")
 
@@ -57,20 +58,22 @@ func execInit(projectDir string, params initParams, in io.Reader, out io.Writer)
 	}
 	defer cleanup()
 
-	if _, err := conn.ExecContext(ctx, "CALL dolt_commit('-Am', 'init: create schema')"); err != nil {
+	repo := repoFn(conn)
+
+	if err := repo.Commit(ctx, "init: create schema"); err != nil {
 		return fmt.Errorf("initial commit: %w", err)
 	}
 
 	if teamBranch != defaultTeamBranch {
-		if _, err := conn.ExecContext(ctx, "CALL dolt_checkout('-b', ?)", teamBranch); err != nil {
+		if err := repo.CreateBranch(ctx, teamBranch); err != nil {
 			return err
 		}
-		if _, err := conn.ExecContext(ctx, "CALL dolt_checkout(?)", defaultTeamBranch); err != nil {
+		if err := repo.Checkout(ctx, defaultTeamBranch); err != nil {
 			return err
 		}
 	}
 
-	if _, err := conn.ExecContext(ctx, "CALL dolt_checkout('-b', ?)", branch); err != nil {
+	if err := repo.CreateBranch(ctx, branch); err != nil {
 		return err
 	}
 

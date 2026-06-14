@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"os"
 	"path/filepath"
 	"testing"
@@ -46,7 +47,7 @@ func TestOpenProjectConn_ErrorWhenUserConfigAbsent(t *testing.T) {
 		t.Fatalf("setupDB: %v", err)
 	}
 
-	_, _, cleanup, err := openProjectConn(dir)
+	_, _, cleanup, err := openProjectConn(dir, doltRepoFn)
 	if cleanup != nil {
 		defer cleanup()
 	}
@@ -59,18 +60,18 @@ func TestOpenProjectConn_ErrorWhenUserConfigAbsent(t *testing.T) {
 func TestOpenProjectConn_SucceedsAfterInit(t *testing.T) {
 	dir := t.TempDir()
 	mustRun(t, "git", "-C", dir, "init")
-	if err := execInit(dir, initParams{Yes: true}, nil, nil); err != nil {
+	if err := execInit(dir, initParams{Yes: true}, nil, nil, doltRepoFn); err != nil {
 		t.Fatalf("execInit: %v", err)
 	}
 
-	conn, projectDir, cleanup, err := openProjectConn(dir)
+	repo, projectDir, cleanup, err := openProjectConn(dir, doltRepoFn)
 	if err != nil {
 		t.Fatalf("openProjectConn: %v", err)
 	}
 	defer cleanup()
 
-	if conn == nil {
-		t.Error("expected non-nil conn")
+	if repo == nil {
+		t.Error("expected non-nil repo")
 	}
 	if projectDir == "" {
 		t.Error("expected non-empty projectDir")
@@ -82,7 +83,7 @@ func TestOpenProjectConn_CheckoutsPersonalBranch(t *testing.T) {
 	dir := t.TempDir()
 	mustRun(t, "git", "-C", dir, "init")
 	dbDir := filepath.Join(dir, ".instinct-db")
-	if err := execInit(dir, initParams{Yes: true}, nil, nil); err != nil {
+	if err := execInit(dir, initParams{Yes: true}, nil, nil, doltRepoFn); err != nil {
 		t.Fatalf("execInit: %v", err)
 	}
 
@@ -100,14 +101,18 @@ func TestOpenProjectConn_CheckoutsPersonalBranch(t *testing.T) {
 		t.Fatalf("writeUserConfig: %v", err)
 	}
 
-	conn, _, connCleanup, err := openProjectConn(dir)
+	var capturedConn *sql.Conn
+	_, _, connCleanup, err := openProjectConn(dir, func(conn *sql.Conn) Repository {
+		capturedConn = conn
+		return doltrepo.NewRepository(conn)
+	})
 	if err != nil {
 		t.Fatalf("openProjectConn: %v", err)
 	}
 	defer connCleanup()
 
 	var branch string
-	if err := conn.QueryRowContext(t.Context(), "SELECT active_branch()").Scan(&branch); err != nil {
+	if err := capturedConn.QueryRowContext(t.Context(), "SELECT active_branch()").Scan(&branch); err != nil {
 		t.Fatalf("active_branch: %v", err)
 	}
 	if branch != "testuser" {

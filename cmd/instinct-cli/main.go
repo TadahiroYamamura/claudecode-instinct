@@ -13,7 +13,11 @@ import (
 	doltrepo "github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/dolt"
 )
 
-func openProjectConn(cwd string) (*sql.Conn, string, func(), error) {
+var defaultRepoFn = func(conn *sql.Conn) Repository {
+	return doltrepo.NewRepository(conn)
+}
+
+func openProjectConn(cwd string, repoFn func(*sql.Conn) Repository) (Repository, string, func(), error) {
 	projectDir, err := findProjectDirFrom(cwd)
 	if err != nil {
 		return nil, "", nil, err
@@ -29,12 +33,13 @@ func openProjectConn(cwd string) (*sql.Conn, string, func(), error) {
 		return nil, "", nil, err
 	}
 
-	if _, err := conn.ExecContext(context.Background(), "CALL dolt_checkout(?)", userCfg.Dolt.Branch); err != nil {
+	repo := repoFn(conn)
+	if err := repo.Checkout(context.Background(), userCfg.Dolt.Branch); err != nil {
 		cleanup()
 		return nil, "", nil, fmt.Errorf("checkout %s: %w", userCfg.Dolt.Branch, err)
 	}
 
-	return conn, projectDir, cleanup, nil
+	return repo, projectDir, cleanup, nil
 }
 
 type initCmd struct {
@@ -121,22 +126,23 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 	if err != nil {
 		return err
 	}
+	ctx := context.Background()
 	switch kctx.Command() {
 	case "init":
-		return execInit(cwd, initParams{Branch: cli.Init.Branch, TeamBranch: cli.Init.TeamBranch, Yes: cli.Init.Yes}, in, out)
+		return execInit(cwd, initParams{Branch: cli.Init.Branch, TeamBranch: cli.Init.TeamBranch, Yes: cli.Init.Yes}, in, out, defaultRepoFn)
 	case "connect":
-		return execConnect(cwd, connectParams{Branch: cli.Connect.Branch, RemoteURL: cli.Connect.RemoteURL, Refs: cli.Connect.Refs, Yes: cli.Connect.Yes}, in, out, defaultDoltClone, func(conn *sql.Conn) Repository { return doltrepo.NewRepository(conn) })
+		return execConnect(cwd, connectParams{Branch: cli.Connect.Branch, RemoteURL: cli.Connect.RemoteURL, Refs: cli.Connect.Refs, Yes: cli.Connect.Yes}, in, out, defaultDoltClone, defaultRepoFn)
 	case "insert":
-		conn, projectDir, cleanup, err := openProjectConn(cwd)
+		repo, projectDir, cleanup, err := openProjectConn(cwd, defaultRepoFn)
 		if err != nil {
 			return err
 		}
 		defer cleanup()
-		return execInsert(context.Background(), doltrepo.NewRepository(conn), cli.Insert, func(_ string) (string, error) {
+		return execInsert(ctx, repo, cli.Insert, func(_ string) (string, error) {
 			return resolveProjectID(projectDir)
 		})
 	case "list":
-		conn, projectDir, cleanup, err := openProjectConn(cwd)
+		repo, projectDir, cleanup, err := openProjectConn(cwd, defaultRepoFn)
 		if err != nil {
 			return err
 		}
@@ -146,33 +152,33 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 			cfg = &InstinctConfig{}
 		}
 		if cli.List.Merged {
-			return execListMerged(context.Background(), doltrepo.NewRepository(conn), cfg, os.Stdout)
+			return execListMerged(ctx, repo, cfg, os.Stdout)
 		}
-		return execList(context.Background(), doltrepo.NewRepository(conn), os.Stdout)
+		return execList(ctx, repo, os.Stdout)
 	case "show <id>":
-		conn, _, cleanup, err := openProjectConn(cwd)
+		repo, _, cleanup, err := openProjectConn(cwd, defaultRepoFn)
 		if err != nil {
 			return err
 		}
 		defer cleanup()
-		return execShow(context.Background(), doltrepo.NewRepository(conn), cli.Show.ID, os.Stdout)
+		return execShow(ctx, repo, cli.Show.ID, os.Stdout)
 	case "commit":
-		conn, _, cleanup, err := openProjectConn(cwd)
+		repo, _, cleanup, err := openProjectConn(cwd, defaultRepoFn)
 		if err != nil {
 			return err
 		}
 		defer cleanup()
-		return execCommit(context.Background(), doltrepo.NewRepository(conn), cli.Commit.Message)
+		return execCommit(ctx, repo, cli.Commit.Message)
 	case "dedup":
-		conn, projectDir, cleanup, err := openProjectConn(cwd)
+		repo, projectDir, cleanup, err := openProjectConn(cwd, defaultRepoFn)
 		if err != nil {
 			return err
 		}
 		defer cleanup()
 		cfg, _ := loadConfig(instinctDbDir(projectDir))
-		return execDedup(context.Background(), doltrepo.NewRepository(conn), haikuJudge, similarityThresholdFromConfig(cfg), out)
+		return execDedup(ctx, repo, haikuJudge, similarityThresholdFromConfig(cfg), out)
 	case "review":
-		conn, projectDir, cleanup, err := openProjectConn(cwd)
+		repo, projectDir, cleanup, err := openProjectConn(cwd, defaultRepoFn)
 		if err != nil {
 			return err
 		}
@@ -186,9 +192,9 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 			return err
 		}
 		submittedBy, _ := gitConfigValue("user.name")
-		return execReview(context.Background(), doltrepo.NewRepository(conn), cfg, userCfg.Dolt.Branch, submittedBy, ttyReviewSelector, out)
+		return execReview(ctx, repo, cfg, userCfg.Dolt.Branch, submittedBy, ttyReviewSelector, out)
 	case "push":
-		conn, projectDir, cleanup, err := openProjectConn(cwd)
+		repo, projectDir, cleanup, err := openProjectConn(cwd, defaultRepoFn)
 		if err != nil {
 			return err
 		}
@@ -201,9 +207,9 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 		if err != nil {
 			return err
 		}
-		return execPush(context.Background(), doltrepo.NewRepository(conn), cfg, userCfg.Dolt.Branch, out)
+		return execPush(ctx, repo, cfg, userCfg.Dolt.Branch, out)
 	case "pull":
-		conn, projectDir, cleanup, err := openProjectConn(cwd)
+		repo, projectDir, cleanup, err := openProjectConn(cwd, defaultRepoFn)
 		if err != nil {
 			return err
 		}
@@ -216,7 +222,7 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 		if err != nil {
 			return err
 		}
-		return execPull(context.Background(), doltrepo.NewRepository(conn), cfg, userCfg.Dolt.Branch, out)
+		return execPull(ctx, repo, cfg, userCfg.Dolt.Branch, out)
 	default:
 		return fmt.Errorf("unknown command: %s", kctx.Command())
 	}

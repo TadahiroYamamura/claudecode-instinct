@@ -17,7 +17,7 @@ func TestConnect_UsesDefaultsWithYesFlag(t *testing.T) {
 	dir := t.TempDir()
 	mustRun(t, "git", "-C", dir, "init")
 	mustRun(t, "git", "-C", dir, "remote", "add", "origin", "git@github.com:test/repo.git")
-	if err := execInit(dir, initParams{Yes: true}, nil, nil); err != nil {
+	if err := execInit(dir, initParams{Yes: true}, nil, nil, doltRepoFn); err != nil {
 		t.Fatalf("execInit: %v", err)
 	}
 
@@ -41,7 +41,7 @@ func TestConnect_UsesDefaultsWithYesFlag(t *testing.T) {
 func TestConnect_UsesInteractiveInputForRemoteURL(t *testing.T) {
 	dir := t.TempDir()
 	mustRun(t, "git", "-C", dir, "init")
-	if err := execInit(dir, initParams{Yes: true}, nil, nil); err != nil {
+	if err := execInit(dir, initParams{Yes: true}, nil, nil, doltRepoFn); err != nil {
 		t.Fatalf("execInit: %v", err)
 	}
 
@@ -63,7 +63,7 @@ func TestConnect_UsesInteractiveInputForRemoteURL(t *testing.T) {
 func TestConnect_ErrorWhenRemoteURLMissingAndNoGitOrigin(t *testing.T) {
 	dir := t.TempDir()
 	mustRun(t, "git", "-C", dir, "init")
-	if err := execInit(dir, initParams{Yes: true}, nil, nil); err != nil {
+	if err := execInit(dir, initParams{Yes: true}, nil, nil, doltRepoFn); err != nil {
 		t.Fatalf("execInit: %v", err)
 	}
 
@@ -99,7 +99,7 @@ func TestConnect_ErrorWhenTeamBranchNotSet(t *testing.T) {
 func TestConnect_PushesTeamBranchOnFirstUser(t *testing.T) {
 	dir := t.TempDir()
 	mustRun(t, "git", "-C", dir, "init")
-	if err := execInit(dir, initParams{Yes: true}, nil, nil); err != nil {
+	if err := execInit(dir, initParams{Yes: true}, nil, nil, doltRepoFn); err != nil {
 		t.Fatalf("execInit: %v", err)
 	}
 
@@ -127,7 +127,7 @@ func TestConnect_PushesTeamBranchOnFirstUser(t *testing.T) {
 func TestConnect_UpdatesTeamConfigAfterPush(t *testing.T) {
 	dir := t.TempDir()
 	mustRun(t, "git", "-C", dir, "init")
-	if err := execInit(dir, initParams{Yes: true}, nil, nil); err != nil {
+	if err := execInit(dir, initParams{Yes: true}, nil, nil, doltRepoFn); err != nil {
 		t.Fatalf("execInit: %v", err)
 	}
 
@@ -154,7 +154,7 @@ func TestConnect_UpdatesTeamConfigAfterPush(t *testing.T) {
 func TestConnect_RegistersRemoteWithCorrectRefsAndURL(t *testing.T) {
 	dir := t.TempDir()
 	mustRun(t, "git", "-C", dir, "init")
-	if err := execInit(dir, initParams{Yes: true}, nil, nil); err != nil {
+	if err := execInit(dir, initParams{Yes: true}, nil, nil, doltRepoFn); err != nil {
 		t.Fatalf("execInit: %v", err)
 	}
 

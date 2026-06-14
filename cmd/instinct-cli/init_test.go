@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"io"
 	"os"
 	"path/filepath"
@@ -13,7 +14,7 @@ func TestInit_DBHasTablesAndInitialCommit(t *testing.T) {
 	dir := t.TempDir()
 	mustRun(t, "git", "-C", dir, "init")
 
-	if err := execInit(dir, initParams{Yes: true}, nil, io.Discard); err != nil {
+	if err := execInit(dir, initParams{Yes: true}, nil, io.Discard, doltRepoFn); err != nil {
 		t.Fatalf("execInit: %v", err)
 	}
 
@@ -53,18 +54,22 @@ func TestInit_CreatesPersonalBranch(t *testing.T) {
 	dir := t.TempDir()
 	mustRun(t, "git", "-C", dir, "init")
 
-	if err := execInit(dir, initParams{Branch: "alice", Yes: true}, nil, io.Discard); err != nil {
+	if err := execInit(dir, initParams{Branch: "alice", Yes: true}, nil, io.Discard, doltRepoFn); err != nil {
 		t.Fatalf("execInit: %v", err)
 	}
 
-	conn, _, cleanup, err := openProjectConn(dir)
+	var capturedConn *sql.Conn
+	_, _, cleanup, err := openProjectConn(dir, func(conn *sql.Conn) Repository {
+		capturedConn = conn
+		return doltRepoFn(conn)
+	})
 	if err != nil {
 		t.Fatalf("openProjectConn: %v", err)
 	}
 	defer cleanup()
 
 	var branch string
-	if err := conn.QueryRowContext(t.Context(), "SELECT active_branch()").Scan(&branch); err != nil {
+	if err := capturedConn.QueryRowContext(t.Context(), "SELECT active_branch()").Scan(&branch); err != nil {
 		t.Fatalf("active_branch: %v", err)
 	}
 	if branch != "alice" {
@@ -77,7 +82,7 @@ func TestInit_CreatesTeamBranchInDolt(t *testing.T) {
 	dir := t.TempDir()
 	mustRun(t, "git", "-C", dir, "init")
 
-	if err := execInit(dir, initParams{TeamBranch: "develop", Yes: true}, nil, io.Discard); err != nil {
+	if err := execInit(dir, initParams{TeamBranch: "develop", Yes: true}, nil, io.Discard, doltRepoFn); err != nil {
 		t.Fatalf("execInit: %v", err)
 	}
 
@@ -103,7 +108,7 @@ func TestInit_TeamBranchFlagIsReflectedInTeamConfig(t *testing.T) {
 	dir := t.TempDir()
 	mustRun(t, "git", "-C", dir, "init")
 
-	if err := execInit(dir, initParams{TeamBranch: "develop", Yes: true}, nil, io.Discard); err != nil {
+	if err := execInit(dir, initParams{TeamBranch: "develop", Yes: true}, nil, io.Discard, doltRepoFn); err != nil {
 		t.Fatalf("execInit: %v", err)
 	}
 
@@ -122,7 +127,7 @@ func TestInit_UsesInteractiveInputForBranch(t *testing.T) {
 	mustRun(t, "git", "-C", dir, "init")
 
 	in := strings.NewReader("bob\n")
-	if err := execInit(dir, initParams{}, in, io.Discard); err != nil {
+	if err := execInit(dir, initParams{}, in, io.Discard, doltRepoFn); err != nil {
 		t.Fatalf("execInit: %v", err)
 	}
 
@@ -154,7 +159,7 @@ func TestInit_CreatesDoltDBWithoutRemote(t *testing.T) {
 	dir := t.TempDir()
 	mustRun(t, "git", "-C", dir, "init")
 
-	if err := execInit(dir, initParams{Yes: true}, nil, io.Discard); err != nil {
+	if err := execInit(dir, initParams{Yes: true}, nil, io.Discard, doltRepoFn); err != nil {
 		t.Fatalf("execInit: %v", err)
 	}
 
@@ -169,7 +174,7 @@ func TestInit_WritesTeamConfig(t *testing.T) {
 	dir := t.TempDir()
 	mustRun(t, "git", "-C", dir, "init")
 
-	if err := execInit(dir, initParams{Yes: true}, nil, io.Discard); err != nil {
+	if err := execInit(dir, initParams{Yes: true}, nil, io.Discard, doltRepoFn); err != nil {
 		t.Fatalf("execInit: %v", err)
 	}
 
@@ -212,7 +217,7 @@ func TestInit_CreatesGitignore(t *testing.T) {
 	dir := t.TempDir()
 	mustRun(t, "git", "-C", dir, "init")
 
-	if err := execInit(dir, initParams{Yes: true}, nil, io.Discard); err != nil {
+	if err := execInit(dir, initParams{Yes: true}, nil, io.Discard, doltRepoFn); err != nil {
 		t.Fatalf("execInit: %v", err)
 	}
 
@@ -230,7 +235,7 @@ func TestInit_WritesUserConfig(t *testing.T) {
 	dir := t.TempDir()
 	mustRun(t, "git", "-C", dir, "init")
 
-	if err := execInit(dir, initParams{Branch: "alice", Yes: true}, nil, io.Discard); err != nil {
+	if err := execInit(dir, initParams{Branch: "alice", Yes: true}, nil, io.Discard, doltRepoFn); err != nil {
 		t.Fatalf("execInit: %v", err)
 	}
 
