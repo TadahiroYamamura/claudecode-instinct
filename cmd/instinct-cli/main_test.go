@@ -129,6 +129,20 @@ func TestDispatch_ConnectCommand_RoutesToExecConnect(t *testing.T) {
 	}
 }
 
+// "instinct review" はサブコマンド(list/approve)が必須
+func TestDispatch_ReviewWithoutSubcommand_ReturnsError(t *testing.T) {
+	dir := t.TempDir()
+	gitInitWithRemote(t, dir)
+	if err := execInit(dir, initParams{Yes: true}, nil, nil, doltRepoFn); err != nil {
+		t.Fatalf("execInit: %v", err)
+	}
+
+	err := dispatch([]string{"review"}, dir, nil, io.Discard)
+	if err == nil {
+		t.Error("expected error when 'review' called without subcommand (list or approve required)")
+	}
+}
+
 // dispatch("insert") → dispatch("list") でレコードが表示される
 func TestDispatch_InsertThenList_RecordAppears(t *testing.T) {
 	dir := t.TempDir()

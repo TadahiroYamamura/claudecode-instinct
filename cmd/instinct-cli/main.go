@@ -73,8 +73,13 @@ type nominateCmd struct {
 	IDs []string `arg:"" optional:"" help:"Short IDs to nominate, or 'list' to show candidates"`
 }
 
+type reviewListSubCmd struct{}
+type reviewApproveSubCmd struct {
+	IDs []string `arg:"" help:"Short IDs to approve"`
+}
 type reviewCmd struct {
-	IDs []string `arg:"" optional:"" help:"Short IDs to approve, or 'list' to show review_queue"`
+	List    reviewListSubCmd    `cmd:"" help:"Show review_queue"`
+	Approve reviewApproveSubCmd `cmd:"" help:"Approve instincts and promote to team branch"`
 }
 type pushCmd struct{}
 type pullCmd struct{}
@@ -204,7 +209,7 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 		}
 		submittedBy, _ := gitConfigValue("user.name")
 		return execNominate(ctx, repo, cfg, userCfg.Dolt.Branch, submittedBy, cli.Nominate.IDs, out)
-	case "review", "review <ids>":
+	case "review list":
 		repo, projectDir, cleanup, err := openProjectConn(cwd, defaultRepoFn)
 		if err != nil {
 			return err
@@ -214,15 +219,23 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 		if cfg == nil {
 			cfg = &InstinctConfig{}
 		}
-		if len(cli.Review.IDs) == 0 || (len(cli.Review.IDs) == 1 && cli.Review.IDs[0] == "list") {
-			return execReviewList(ctx, repo, cfg, out)
+		return execReviewList(ctx, repo, cfg, out)
+	case "review approve <ids>":
+		repo, projectDir, cleanup, err := openProjectConn(cwd, defaultRepoFn)
+		if err != nil {
+			return err
+		}
+		defer cleanup()
+		cfg, _ := loadConfig(instinctDbDir(projectDir))
+		if cfg == nil {
+			cfg = &InstinctConfig{}
 		}
 		userCfg, err := loadUserConfig(instinctDbDir(projectDir))
 		if err != nil {
 			return err
 		}
 		approvedBy, _ := gitConfigValue("user.name")
-		return execReviewApprove(ctx, repo, cfg, userCfg.Dolt.Branch, approvedBy, cli.Review.IDs, out)
+		return execReviewApprove(ctx, repo, cfg, userCfg.Dolt.Branch, approvedBy, cli.Review.Approve.IDs, out)
 	case "push":
 		repo, projectDir, cleanup, err := openProjectConn(cwd, defaultRepoFn)
 		if err != nil {
