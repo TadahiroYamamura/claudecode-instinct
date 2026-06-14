@@ -42,7 +42,8 @@ type stubRepository struct {
 	insertInstinct      func(ctx context.Context, p InsertParams) (string, error)
 	listInstincts       func(ctx context.Context) ([]InstinctRow, error)
 	getInstinct         func(ctx context.Context, shortID string) (*InstinctRow, error)
-	listMergedInstincts func(ctx context.Context, teamBranch string) ([]InstinctRow, error)
+	listMergedInstincts  func(ctx context.Context, teamBranch string) ([]InstinctRow, error)
+	listReviewInstincts  func(ctx context.Context, teamBranch string, minObservations int) ([]InstinctRow, error)
 }
 
 func (s *stubRepository) InsertInstinct(ctx context.Context, p InsertParams) (string, error) {
@@ -69,6 +70,13 @@ func (s *stubRepository) GetInstinct(ctx context.Context, shortID string) (*Inst
 func (s *stubRepository) ListMergedInstincts(ctx context.Context, teamBranch string) ([]InstinctRow, error) {
 	if s.listMergedInstincts != nil {
 		return s.listMergedInstincts(ctx, teamBranch)
+	}
+	return nil, nil
+}
+
+func (s *stubRepository) ListReviewInstincts(ctx context.Context, teamBranch string, minObservations int) ([]InstinctRow, error) {
+	if s.listReviewInstincts != nil {
+		return s.listReviewInstincts(ctx, teamBranch, minObservations)
 	}
 	return nil, nil
 }

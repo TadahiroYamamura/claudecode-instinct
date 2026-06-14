@@ -4,7 +4,50 @@ import (
 	"io"
 	"strings"
 	"testing"
+
+	doltrepo "github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/dolt"
 )
+
+// ListReviewInstinctsは個人ブランチにのみ存在するinstinctを返す
+func TestRepository_ListReviewInstincts_ShowsPendingInstincts(t *testing.T) {
+	ctx, conn := setupTestDB(t)
+
+	if _, err := insertInstinct(ctx, conn, InsertParams{
+		Content: "already on main", TriggerDesc: "always",
+		Domain: "git", Scope: "global", ObservationCount: 6, ProjectID: "abc123def456",
+	}); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+	if _, err := conn.ExecContext(ctx, `CALL dolt_commit('-Am', 'test: main instinct')`); err != nil {
+		t.Fatalf("commit: %v", err)
+	}
+	if _, err := conn.ExecContext(ctx, `CALL dolt_checkout('-b', 'personal')`); err != nil {
+		t.Fatalf("checkout: %v", err)
+	}
+	if _, err := insertInstinct(ctx, conn, InsertParams{
+		Content: "pending review", TriggerDesc: "sometimes",
+		Domain: "testing", Scope: "project", ObservationCount: 6, ProjectID: "abc123def456",
+	}); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+
+	rows, err := doltrepo.NewRepository(conn).ListReviewInstincts(ctx, "main", 6)
+	if err != nil {
+		t.Fatalf("ListReviewInstincts: %v", err)
+	}
+	found := false
+	for _, r := range rows {
+		if strings.Contains(r.Content, "pending review") {
+			found = true
+		}
+		if strings.Contains(r.Content, "already on main") {
+			t.Error("already-merged instinct should not appear")
+		}
+	}
+	if !found {
+		t.Error("expected pending instinct in results")
+	}
+}
 
 // listReviewInstincts は個人ブランチにのみ存在するinstinctを返す
 func TestListReviewInstincts_ShowsPendingInstincts(t *testing.T) {
