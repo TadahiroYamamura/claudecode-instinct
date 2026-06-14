@@ -4,13 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
+	"regexp"
 	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/instincts"
 )
+
+var reBranchNotOnRemote = regexp.MustCompile(`^Error 1105: branch "[^"]+" not found on remote$`)
 
 type Repository struct {
 	conn *sql.Conn
@@ -143,7 +145,7 @@ func (r *Repository) PromoteFromReviewQueue(ctx context.Context, teamBranch stri
 
 	msg := fmt.Sprintf("review: promote %d instinct(s) by %s", len(rows), approvedBy)
 	if _, err := r.conn.ExecContext(ctx, "CALL dolt_commit('-Am', ?)", msg); err != nil {
-		if strings.Contains(err.Error(), "nothing to commit") {
+		if err.Error() == "Error 1105: nothing to commit" {
 			return nil
 		}
 		return fmt.Errorf("commit promotion: %w", err)
@@ -211,7 +213,7 @@ func (r *Repository) SubmitToReviewQueue(ctx context.Context, teamBranch string,
 
 	msg := fmt.Sprintf("review: submit %d instinct(s) by %s", len(rows), submittedBy)
 	if _, err := r.conn.ExecContext(ctx, "CALL dolt_commit('-Am', ?)", msg); err != nil {
-		if strings.Contains(err.Error(), "nothing to commit") {
+		if err.Error() == "Error 1105: nothing to commit" {
 			return nil
 		}
 		return fmt.Errorf("commit review_queue: %w", err)
@@ -226,6 +228,9 @@ func (r *Repository) Upload(ctx context.Context, remote, branch string) error {
 
 func (r *Repository) Sync(ctx context.Context, remote, branch string) error {
 	_, err := r.conn.ExecContext(ctx, "CALL dolt_pull(?, ?)", remote, branch)
+	if err != nil && reBranchNotOnRemote.MatchString(err.Error()) {
+		return fmt.Errorf("%w: %s", instincts.ErrBranchNotOnRemote, branch)
+	}
 	return err
 }
 
@@ -245,7 +250,7 @@ func (r *Repository) CreateBranch(ctx context.Context, branch string) error {
 
 func (r *Repository) Commit(ctx context.Context, message string) error {
 	_, err := r.conn.ExecContext(ctx, "CALL dolt_commit('-Am', ?)", message)
-	if err != nil && strings.Contains(err.Error(), "nothing to commit") {
+	if err != nil && err.Error() == "Error 1105: nothing to commit" {
 		return nil
 	}
 	return err

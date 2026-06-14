@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -93,8 +92,8 @@ func TestDispatch_NoArgs_ReturnsUsageErrorNotProjectDirError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for no args")
 	}
-	if !regexp.MustCompile(`^expected one of`).MatchString(err.Error()) {
-		t.Errorf("expected usage parse error, got: %v", err)
+	if err.Error() == ".instinct-db not found in any parent directory" {
+		t.Errorf("should not search for .instinct-db when no subcommand given, got: %v", err)
 	}
 }
 

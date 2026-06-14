@@ -2,8 +2,11 @@ package instincts
 
 import (
 	"context"
+	"errors"
 	"time"
 )
+
+var ErrBranchNotOnRemote = errors.New("branch not found on remote")
 
 type InsertParams struct {
 	Content          string

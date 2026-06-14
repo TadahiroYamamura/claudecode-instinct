@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
-	"strings"
+
+	"github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/instincts"
 )
 
 func execPull(ctx context.Context, repo Repository, cfg *InstinctConfig, localBranch string, w io.Writer) error {
@@ -27,7 +29,7 @@ func execPull(ctx context.Context, repo Repository, cfg *InstinctConfig, localBr
 
 	repo.Checkout(ctx, localBranch) //nolint:errcheck
 	if err := repo.Sync(ctx, "origin", localBranch); err != nil {
-		if !strings.Contains(err.Error(), "not found on remote") {
+		if !errors.Is(err, instincts.ErrBranchNotOnRemote) {
 			return fmt.Errorf("pull personal branch: %w", err)
 		}
 		fmt.Fprintf(w, "pulled %s from %s (personal branch %s not on remote yet)\n", cfg.Dolt.TeamBranch, cfg.Dolt.RemoteURL, localBranch)
