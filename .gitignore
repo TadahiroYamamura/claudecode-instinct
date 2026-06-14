@@ -11,4 +11,4 @@
 .dolt/
 
 # Go build artifacts
-cmd/instinct-cli/instinct-cli
+bin/
