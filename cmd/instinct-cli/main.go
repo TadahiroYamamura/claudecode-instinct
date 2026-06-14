@@ -152,16 +152,16 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 			cfg = &InstinctConfig{}
 		}
 		if cli.List.Merged {
-			return execListMerged(ctx, repo, cfg, os.Stdout)
+			return execListMerged(ctx, repo, cfg, out)
 		}
-		return execList(ctx, repo, os.Stdout)
+		return execList(ctx, repo, out)
 	case "show <id>":
 		repo, _, cleanup, err := openProjectConn(cwd, defaultRepoFn)
 		if err != nil {
 			return err
 		}
 		defer cleanup()
-		return execShow(ctx, repo, cli.Show.ID, os.Stdout)
+		return execShow(ctx, repo, cli.Show.ID, out)
 	case "commit":
 		repo, _, cleanup, err := openProjectConn(cwd, defaultRepoFn)
 		if err != nil {
