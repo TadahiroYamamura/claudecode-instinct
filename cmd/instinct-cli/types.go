@@ -4,6 +4,7 @@ import "github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/interna
 
 type InsertParams = instincts.InsertParams
 type InstinctRow = instincts.InstinctRow
+type ReviewQueueRow = instincts.ReviewQueueRow
 type DedupDecision = instincts.DedupDecision
 type SimilarityScores = instincts.SimilarityScores
 type Repository = instincts.Repository

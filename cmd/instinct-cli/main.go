@@ -69,6 +69,7 @@ type commitCmd struct {
 
 type dedupCmd struct{}
 type nominateCmd struct{}
+type reviewCmd struct{}
 type pushCmd struct{}
 type pullCmd struct{}
 
@@ -81,6 +82,7 @@ type cliStruct struct {
 	Commit   commitCmd   `cmd:"" help:"Commit working set to Dolt history"`
 	Dedup    dedupCmd    `cmd:"" help:"Detect and merge duplicate instincts using Haiku"`
 	Nominate nominateCmd `cmd:"" help:"Nominate instincts for team review (submit to review_queue)"`
+	Review   reviewCmd   `cmd:"" help:"Promote instincts from review_queue to team branch"`
 	Push     pushCmd     `cmd:"" help:"Push personal branch to remote repository"`
 	Pull     pullCmd     `cmd:"" help:"Pull team branch from remote repository"`
 }
@@ -193,6 +195,22 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 		}
 		submittedBy, _ := gitConfigValue("user.name")
 		return execNominate(ctx, repo, cfg, userCfg.Dolt.Branch, submittedBy, ttyNominateSelector, out)
+	case "review":
+		repo, projectDir, cleanup, err := openProjectConn(cwd, defaultRepoFn)
+		if err != nil {
+			return err
+		}
+		defer cleanup()
+		cfg, _ := loadConfig(instinctDbDir(projectDir))
+		if cfg == nil {
+			cfg = &InstinctConfig{}
+		}
+		userCfg, err := loadUserConfig(instinctDbDir(projectDir))
+		if err != nil {
+			return err
+		}
+		approvedBy, _ := gitConfigValue("user.name")
+		return execReview(ctx, repo, cfg, userCfg.Dolt.Branch, approvedBy, ttyReviewSelector, out)
 	case "push":
 		repo, projectDir, cleanup, err := openProjectConn(cwd, defaultRepoFn)
 		if err != nil {

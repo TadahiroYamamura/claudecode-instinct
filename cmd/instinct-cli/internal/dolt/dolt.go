@@ -72,7 +72,7 @@ func (r *Repository) ListReviewInstincts(ctx context.Context, teamBranch string,
 	// AS OF はプレースホルダー非対応のため Sprintf で埋め込む。
 	// teamBranch は config.yml 由来（ユーザー入力ではない）。
 	query := fmt.Sprintf(`
-		SELECT id, content, trigger_desc, domain, observation_count, scope, created_at
+		SELECT id, content, trigger_desc, domain, observation_count, scope, project_id, created_at
 		FROM instincts
 		WHERE id NOT IN (SELECT id FROM instincts AS OF '%s')
 		  AND observation_count >= ?
@@ -87,13 +87,68 @@ func (r *Repository) ListReviewInstincts(ctx context.Context, teamBranch string,
 	for rows.Next() {
 		var row instincts.InstinctRow
 		var createdAt time.Time
-		if err := rows.Scan(&row.ID, &row.Content, &row.TriggerDesc, &row.Domain, &row.ObservationCount, &row.Scope, &createdAt); err != nil {
+		if err := rows.Scan(&row.ID, &row.Content, &row.TriggerDesc, &row.Domain, &row.ObservationCount, &row.Scope, &row.ProjectID, &createdAt); err != nil {
 			return nil, fmt.Errorf("scan: %w", err)
 		}
 		row.CreatedAt = createdAt
 		result = append(result, row)
 	}
 	return result, rows.Err()
+}
+
+func (r *Repository) ListReviewQueue(ctx context.Context, teamBranch string) ([]instincts.ReviewQueueRow, error) {
+	// AS OF はプレースホルダー非対応のため Sprintf で埋め込む。
+	query := fmt.Sprintf(`
+		SELECT instinct_id, content, trigger_desc, domain, observation_count, scope, project_id, submitted_by
+		FROM review_queue AS OF '%s'
+		ORDER BY submitted_at ASC`, teamBranch)
+	rows, err := r.conn.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("list review queue: %w", err)
+	}
+	defer rows.Close()
+
+	var result []instincts.ReviewQueueRow
+	for rows.Next() {
+		var row instincts.ReviewQueueRow
+		if err := rows.Scan(&row.InstinctID, &row.Content, &row.TriggerDesc, &row.Domain, &row.ObservationCount, &row.Scope, &row.ProjectID, &row.SubmittedBy); err != nil {
+			return nil, fmt.Errorf("scan: %w", err)
+		}
+		result = append(result, row)
+	}
+	return result, rows.Err()
+}
+
+func (r *Repository) PromoteFromReviewQueue(ctx context.Context, teamBranch string, rows []instincts.ReviewQueueRow, personalBranch, approvedBy string) error {
+	if _, err := r.conn.ExecContext(ctx, "CALL dolt_checkout(?)", teamBranch); err != nil {
+		return fmt.Errorf("checkout %s: %w", teamBranch, err)
+	}
+	defer r.conn.ExecContext(ctx, "CALL dolt_checkout(?)", personalBranch) //nolint:errcheck
+
+	for _, row := range rows {
+		if _, err := r.conn.ExecContext(ctx, `
+			INSERT INTO instincts (id, content, trigger_desc, domain, scope, project_id, observation_count)
+			VALUES (?, ?, ?, ?, ?, ?, ?)
+			ON DUPLICATE KEY UPDATE observation_count = VALUES(observation_count)`,
+			row.InstinctID, row.Content, row.TriggerDesc, row.Domain, row.Scope, row.ProjectID, row.ObservationCount,
+		); err != nil {
+			return fmt.Errorf("promote instinct %s: %w", row.InstinctID[:8], err)
+		}
+		if _, err := r.conn.ExecContext(ctx,
+			"DELETE FROM review_queue WHERE instinct_id = ?", row.InstinctID,
+		); err != nil {
+			return fmt.Errorf("remove from review_queue %s: %w", row.InstinctID[:8], err)
+		}
+	}
+
+	msg := fmt.Sprintf("review: promote %d instinct(s) by %s", len(rows), approvedBy)
+	if _, err := r.conn.ExecContext(ctx, "CALL dolt_commit('-Am', ?)", msg); err != nil {
+		if strings.Contains(err.Error(), "nothing to commit") {
+			return nil
+		}
+		return fmt.Errorf("commit promotion: %w", err)
+	}
+	return nil
 }
 
 func (r *Repository) GetInstinct(ctx context.Context, shortID string) (*instincts.InstinctRow, error) {
@@ -143,12 +198,12 @@ func (r *Repository) SubmitToReviewQueue(ctx context.Context, teamBranch string,
 	for _, row := range rows {
 		_, err := r.conn.ExecContext(ctx, `
 			INSERT INTO review_queue
-			  (instinct_id, content, trigger_desc, domain, observation_count, scope, submitted_by)
-			VALUES (?, ?, ?, ?, ?, ?, ?)
+			  (instinct_id, content, trigger_desc, domain, observation_count, scope, project_id, submitted_by)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 			ON DUPLICATE KEY UPDATE
 			  submitted_by = VALUES(submitted_by),
 			  submitted_at = CURRENT_TIMESTAMP`,
-			row.ID, row.Content, row.TriggerDesc, row.Domain, row.ObservationCount, row.Scope, submittedBy)
+			row.ID, row.Content, row.TriggerDesc, row.Domain, row.ObservationCount, row.Scope, row.ProjectID, submittedBy)
 		if err != nil {
 			return fmt.Errorf("insert review_queue %s: %w", row.ID[:8], err)
 		}

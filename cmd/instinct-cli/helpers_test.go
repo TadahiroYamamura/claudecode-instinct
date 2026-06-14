@@ -67,20 +67,22 @@ func fakeRepoFn(_ *sql.Conn) Repository { return &stubRepository{} }
 func doltRepoFn(conn *sql.Conn) Repository { return doltrepo.NewRepository(conn) }
 
 type stubRepository struct {
-	insertInstinct      func(ctx context.Context, p InsertParams) (string, error)
-	listInstincts       func(ctx context.Context) ([]InstinctRow, error)
-	getInstinct         func(ctx context.Context, shortID string) (*InstinctRow, error)
-	listMergedInstincts  func(ctx context.Context, teamBranch string) ([]InstinctRow, error)
-	listReviewInstincts  func(ctx context.Context, teamBranch string, minObservations int) ([]InstinctRow, error)
-	insertDedupDecision  func(ctx context.Context, a, b InstinctRow, d DedupDecision, scores SimilarityScores) error
-	mergeAndDelete       func(ctx context.Context, winner, loser InstinctRow) error
-	commit               func(ctx context.Context, message string) error
-	submitToReviewQueue  func(ctx context.Context, teamBranch string, rows []InstinctRow, personalBranch, submittedBy string) error
-	upload               func(ctx context.Context, remote, branch string) error
-	sync                 func(ctx context.Context, remote, branch string) error
-	ensureRemote         func(ctx context.Context, refs, remoteURL string)
-	checkout             func(ctx context.Context, branch string) error
-	createBranch         func(ctx context.Context, branch string) error
+	insertInstinct           func(ctx context.Context, p InsertParams) (string, error)
+	listInstincts            func(ctx context.Context) ([]InstinctRow, error)
+	getInstinct              func(ctx context.Context, shortID string) (*InstinctRow, error)
+	listMergedInstincts      func(ctx context.Context, teamBranch string) ([]InstinctRow, error)
+	listReviewInstincts      func(ctx context.Context, teamBranch string, minObservations int) ([]InstinctRow, error)
+	listReviewQueue          func(ctx context.Context, teamBranch string) ([]ReviewQueueRow, error)
+	promoteFromReviewQueue   func(ctx context.Context, teamBranch string, rows []ReviewQueueRow, personalBranch, approvedBy string) error
+	insertDedupDecision      func(ctx context.Context, a, b InstinctRow, d DedupDecision, scores SimilarityScores) error
+	mergeAndDelete           func(ctx context.Context, winner, loser InstinctRow) error
+	commit                   func(ctx context.Context, message string) error
+	submitToReviewQueue      func(ctx context.Context, teamBranch string, rows []InstinctRow, personalBranch, submittedBy string) error
+	upload                   func(ctx context.Context, remote, branch string) error
+	sync                     func(ctx context.Context, remote, branch string) error
+	ensureRemote             func(ctx context.Context, refs, remoteURL string)
+	checkout                 func(ctx context.Context, branch string) error
+	createBranch             func(ctx context.Context, branch string) error
 }
 
 func (s *stubRepository) InsertInstinct(ctx context.Context, p InsertParams) (string, error) {
@@ -116,6 +118,20 @@ func (s *stubRepository) ListReviewInstincts(ctx context.Context, teamBranch str
 		return s.listReviewInstincts(ctx, teamBranch, minObservations)
 	}
 	return nil, nil
+}
+
+func (s *stubRepository) ListReviewQueue(ctx context.Context, teamBranch string) ([]ReviewQueueRow, error) {
+	if s.listReviewQueue != nil {
+		return s.listReviewQueue(ctx, teamBranch)
+	}
+	return nil, nil
+}
+
+func (s *stubRepository) PromoteFromReviewQueue(ctx context.Context, teamBranch string, rows []ReviewQueueRow, personalBranch, approvedBy string) error {
+	if s.promoteFromReviewQueue != nil {
+		return s.promoteFromReviewQueue(ctx, teamBranch, rows, personalBranch, approvedBy)
+	}
+	return nil
 }
 
 func (s *stubRepository) InsertDedupDecision(ctx context.Context, a, b InstinctRow, d DedupDecision, scores SimilarityScores) error {

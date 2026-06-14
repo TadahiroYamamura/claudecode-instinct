@@ -44,6 +44,7 @@ func Schema() []string {
 			domain          VARCHAR(128),
 			observation_count INT         NOT NULL DEFAULT 0,
 			scope           ENUM('project','global') NOT NULL DEFAULT 'project',
+			project_id      VARCHAR(12)   NOT NULL DEFAULT '',
 			submitted_by    VARCHAR(256)  NOT NULL,
 			submitted_at    TIMESTAMP     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 		)`,

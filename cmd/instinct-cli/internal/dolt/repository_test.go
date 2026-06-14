@@ -345,6 +345,121 @@ func TestRepository_SubmitToReviewQueue_InsertsOnTeamBranch(t *testing.T) {
 	}
 }
 
+// SubmitToReviewQueueはreview_queueにproject_idを保存する
+func TestRepository_SubmitToReviewQueue_StoresProjectID(t *testing.T) {
+	ctx, conn, repo := setupTestRepo(t)
+
+	id, _ := repo.InsertInstinct(ctx, instincts.InsertParams{
+		Content: "with project", TriggerDesc: "t", Domain: "d",
+		Scope: "project", ObservationCount: 6, ProjectID: "abc123def456",
+	})
+	conn.ExecContext(ctx, `CALL dolt_commit('-Am', 'test')`)   //nolint:errcheck
+	conn.ExecContext(ctx, `CALL dolt_checkout('-b', 'personal')`) //nolint:errcheck
+
+	row := instincts.InstinctRow{
+		ID: id, Content: "with project", TriggerDesc: "t",
+		Domain: "d", Scope: "project", ObservationCount: 6, ProjectID: "abc123def456",
+	}
+	if err := repo.SubmitToReviewQueue(ctx, "main", []instincts.InstinctRow{row}, "personal", "user"); err != nil {
+		t.Fatalf("SubmitToReviewQueue: %v", err)
+	}
+
+	conn.ExecContext(ctx, `CALL dolt_checkout('main')`) //nolint:errcheck
+	var projectID string
+	if err := conn.QueryRowContext(ctx,
+		"SELECT project_id FROM review_queue WHERE instinct_id = ?", id,
+	).Scan(&projectID); err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	if projectID != "abc123def456" {
+		t.Errorf("expected project_id=abc123def456, got %q", projectID)
+	}
+}
+
+// ListReviewQueueはreview_queueの内容をチームブランチから返す
+func TestRepository_ListReviewQueue_ReturnsSubmittedItems(t *testing.T) {
+	ctx, conn, repo := setupTestRepo(t)
+
+	id, _ := repo.InsertInstinct(ctx, instincts.InsertParams{
+		Content: "queue item", TriggerDesc: "on push", Domain: "git",
+		Scope: "project", ObservationCount: 6, ProjectID: "abc123def456",
+	})
+	conn.ExecContext(ctx, `CALL dolt_commit('-Am', 'test')`)      //nolint:errcheck
+	conn.ExecContext(ctx, `CALL dolt_checkout('-b', 'personal')`) //nolint:errcheck
+
+	row := instincts.InstinctRow{
+		ID: id, Content: "queue item", TriggerDesc: "on push",
+		Domain: "git", Scope: "project", ObservationCount: 6, ProjectID: "abc123def456",
+	}
+	repo.SubmitToReviewQueue(ctx, "main", []instincts.InstinctRow{row}, "personal", "alice") //nolint:errcheck
+
+	items, err := repo.ListReviewQueue(ctx, "main")
+	if err != nil {
+		t.Fatalf("ListReviewQueue: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(items))
+	}
+	got := items[0]
+	if got.InstinctID != id {
+		t.Errorf("instinct_id = %q, want %q", got.InstinctID, id)
+	}
+	if got.ProjectID != "abc123def456" {
+		t.Errorf("project_id = %q, want abc123def456", got.ProjectID)
+	}
+	if got.SubmittedBy != "alice" {
+		t.Errorf("submitted_by = %q, want alice", got.SubmittedBy)
+	}
+}
+
+// PromoteFromReviewQueueはreview_queueからinstinctsへ昇格させる
+func TestRepository_PromoteFromReviewQueue_MovesToInstincts(t *testing.T) {
+	ctx, conn, repo := setupTestRepo(t)
+
+	id, _ := repo.InsertInstinct(ctx, instincts.InsertParams{
+		Content: "promote me", TriggerDesc: "always", Domain: "git",
+		Scope: "project", ObservationCount: 6, ProjectID: "abc123def456",
+	})
+	conn.ExecContext(ctx, `CALL dolt_commit('-Am', 'test')`)      //nolint:errcheck
+	conn.ExecContext(ctx, `CALL dolt_checkout('-b', 'personal')`) //nolint:errcheck
+
+	row := instincts.InstinctRow{
+		ID: id, Content: "promote me", TriggerDesc: "always",
+		Domain: "git", Scope: "project", ObservationCount: 6, ProjectID: "abc123def456",
+	}
+	repo.SubmitToReviewQueue(ctx, "main", []instincts.InstinctRow{row}, "personal", "alice") //nolint:errcheck
+
+	queueRows, err := repo.ListReviewQueue(ctx, "main")
+	if err != nil || len(queueRows) == 0 {
+		t.Fatalf("setup ListReviewQueue: %v, len=%d", err, len(queueRows))
+	}
+
+	if err := repo.PromoteFromReviewQueue(ctx, "main", queueRows, "personal", "bob"); err != nil {
+		t.Fatalf("PromoteFromReviewQueue: %v", err)
+	}
+
+	// 元のブランチに戻っている（AS OF 前に確認）
+	var branch string
+	conn.QueryRowContext(ctx, "SELECT active_branch()").Scan(&branch) //nolint:errcheck
+	if branch != "personal" {
+		t.Errorf("expected back on personal branch, got %q", branch)
+	}
+
+	// チームブランチに instinct が追加されている（AS OF で確認）
+	var count int
+	conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM instincts AS OF 'main' WHERE id = ?", id).Scan(&count) //nolint:errcheck
+	if count != 1 {
+		t.Errorf("expected instinct promoted to main, got count=%d", count)
+	}
+
+	// review_queue から削除されている（AS OF で確認）
+	var qCount int
+	conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM review_queue AS OF 'main' WHERE instinct_id = ?", id).Scan(&qCount) //nolint:errcheck
+	if qCount != 0 {
+		t.Errorf("expected review_queue entry removed, got count=%d", qCount)
+	}
+}
+
 // CreateBranchはDoltブランチを作成する
 func TestRepository_CreateBranch(t *testing.T) {
 	ctx, conn, repo := setupTestRepo(t)
