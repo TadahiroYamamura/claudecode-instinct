@@ -21,31 +21,6 @@ func truncate(s string, n int) string {
 	return string(runes[:n]) + "..."
 }
 
-func listMergedInstincts(ctx context.Context, conn *sql.Conn, teamBranch string) ([]InstinctRow, error) {
-	// AS OF はプレースホルダー非対応のため Sprintf で埋め込む。
-	// teamBranch は config.yml 由来（ユーザー入力ではない）。
-	query := fmt.Sprintf(`
-		SELECT id, content, trigger_desc, domain, observation_count, scope, created_at FROM instincts
-		UNION
-		SELECT id, content, trigger_desc, domain, observation_count, scope, created_at FROM instincts AS OF '%s'
-		ORDER BY created_at DESC`, teamBranch)
-	rows, err := conn.QueryContext(ctx, query)
-	if err != nil {
-		return nil, fmt.Errorf("list merged instincts: %w", err)
-	}
-	defer rows.Close()
-
-	var result []InstinctRow
-	for rows.Next() {
-		var r InstinctRow
-		if err := rows.Scan(&r.ID, &r.Content, &r.TriggerDesc, &r.Domain, &r.ObservationCount, &r.Scope, &r.CreatedAt); err != nil {
-			return nil, fmt.Errorf("scan: %w", err)
-		}
-		result = append(result, r)
-	}
-	return result, rows.Err()
-}
-
 func printInstincts(rows []InstinctRow, w io.Writer) error {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(tw, "ID\tCONTENT\tTRIGGER\tDOMAIN\tOBS\tSCOPE")
