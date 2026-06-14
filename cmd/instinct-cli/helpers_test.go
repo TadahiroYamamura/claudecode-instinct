@@ -27,3 +27,14 @@ func fakeCloneFail(_ context.Context, _ string, _, _, _ string) error {
 }
 
 func fakePush(_ context.Context, _ *sql.Conn, _, _ string) error { return nil }
+
+type stubRepository struct {
+	insertInstinct func(ctx context.Context, p InsertParams) (string, error)
+}
+
+func (s *stubRepository) InsertInstinct(ctx context.Context, p InsertParams) (string, error) {
+	if s.insertInstinct != nil {
+		return s.insertInstinct(ctx, p)
+	}
+	return "stub-id", nil
+}

@@ -130,7 +130,7 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 			return err
 		}
 		defer cleanup()
-		return execInsert(context.Background(), conn, cli.Insert, func(_ string) (string, error) {
+		return execInsert(context.Background(), NewDoltRepository(conn), cli.Insert, func(_ string) (string, error) {
 			return resolveProjectID(projectDir)
 		})
 	case "list":

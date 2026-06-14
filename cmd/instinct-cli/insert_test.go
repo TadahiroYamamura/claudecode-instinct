@@ -7,6 +7,30 @@ import (
 	"testing"
 )
 
+// execInsertはRepositoryを通じてinstinctを保存する
+func TestExecInsert_StoresInstinctViaRepository(t *testing.T) {
+	var got InsertParams
+	repo := &stubRepository{
+		insertInstinct: func(_ context.Context, p InsertParams) (string, error) {
+			got = p
+			return "id", nil
+		},
+	}
+	err := execInsert(context.Background(), repo, insertFlags{
+		Content: "テスト前に仕様を確認する",
+		Trigger: "テスト実行時",
+		Domain:  "testing",
+		Count:   2,
+		Scope:   "project",
+	}, func(string) (string, error) { return "abc123", nil })
+	if err != nil {
+		t.Fatalf("execInsert: %v", err)
+	}
+	if got.Content != "テスト前に仕様を確認する" {
+		t.Errorf("content: got %q, want %q", got.Content, "テスト前に仕様を確認する")
+	}
+}
+
 func setupTestDB(t *testing.T) (context.Context, *sql.Conn) {
 	t.Helper()
 	dir := t.TempDir()
@@ -29,7 +53,7 @@ func setupTestDB(t *testing.T) (context.Context, *sql.Conn) {
 func TestRunInsert_StoresRecordFromFlags(t *testing.T) {
 	ctx, conn := setupTestDB(t)
 
-	err := runInsert(ctx, conn, []string{
+	err := runInsert(ctx, NewDoltRepository(conn), []string{
 		"--content", "git push前にテストを実行する",
 		"--trigger", "git push時",
 		"--domain", "git",
@@ -62,7 +86,7 @@ func TestRunInsert_StoresRecordFromFlags(t *testing.T) {
 func TestRunInsert_CountIsRequired(t *testing.T) {
 	ctx, conn := setupTestDB(t)
 
-	err := runInsert(ctx, conn, []string{
+	err := runInsert(ctx, NewDoltRepository(conn), []string{
 		"--content", "何か知見",
 		"--trigger", "何かのとき",
 	}, func(string) (string, error) { return "abc123def456", nil })

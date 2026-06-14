@@ -26,7 +26,7 @@ type insertFlags struct {
 	Scope   string `kong:"name='scope',default='project',help='scope (project|global)'"`
 }
 
-func runInsert(ctx context.Context, conn *sql.Conn, args []string, projectIDFn func(string) (string, error)) error {
+func runInsert(ctx context.Context, repo Repository, args []string, projectIDFn func(string) (string, error)) error {
 	var f insertFlags
 	p, err := kong.New(&f)
 	if err != nil {
@@ -35,15 +35,15 @@ func runInsert(ctx context.Context, conn *sql.Conn, args []string, projectIDFn f
 	if _, err := p.Parse(args); err != nil {
 		return err
 	}
-	return execInsert(ctx, conn, f, projectIDFn)
+	return execInsert(ctx, repo, f, projectIDFn)
 }
 
-func execInsert(ctx context.Context, conn *sql.Conn, f insertFlags, projectIDFn func(string) (string, error)) error {
+func execInsert(ctx context.Context, repo Repository, f insertFlags, projectIDFn func(string) (string, error)) error {
 	projectID, err := projectIDFn("")
 	if err != nil {
 		return fmt.Errorf("project id: %w", err)
 	}
-	_, err = insertInstinct(ctx, conn, InsertParams{
+	_, err = repo.InsertInstinct(ctx, InsertParams{
 		Content:          f.Content,
 		TriggerDesc:      f.Trigger,
 		Domain:           f.Domain,
