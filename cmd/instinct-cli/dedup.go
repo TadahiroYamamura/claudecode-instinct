@@ -14,11 +14,6 @@ const (
 	decisionDistinct  = "distinct"
 )
 
-type DedupDecision struct {
-	Decision  string
-	Reasoning string
-}
-
 type DedupJudge func(ctx context.Context, a, b InstinctRow) (DedupDecision, error)
 
 func insertDedupDecision(ctx context.Context, conn *sql.Conn, a, b InstinctRow, d DedupDecision, scores SimilarityScores) error {

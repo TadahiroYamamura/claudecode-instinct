@@ -6,18 +6,7 @@ import (
 	"fmt"
 	"io"
 	"text/tabwriter"
-	"time"
 )
-
-type InstinctRow struct {
-	ID               string
-	Content          string
-	TriggerDesc      string
-	Domain           string
-	ObservationCount int
-	Scope            string
-	CreatedAt        time.Time
-}
 
 func listInstincts(ctx context.Context, conn *sql.Conn) ([]InstinctRow, error) {
 	rows, err := conn.QueryContext(ctx, "SELECT id, content, trigger_desc, domain, observation_count, scope, created_at FROM instincts ORDER BY created_at DESC")

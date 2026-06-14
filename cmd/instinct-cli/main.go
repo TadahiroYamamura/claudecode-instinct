@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 
 	"github.com/alecthomas/kong"
+
+	doltrepo "github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/dolt"
 )
 
 func openProjectConn(cwd string) (*sql.Conn, string, func(), error) {
@@ -130,7 +132,7 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 			return err
 		}
 		defer cleanup()
-		return execInsert(context.Background(), NewDoltRepository(conn), cli.Insert, func(_ string) (string, error) {
+		return execInsert(context.Background(), doltrepo.NewRepository(conn), cli.Insert, func(_ string) (string, error) {
 			return resolveProjectID(projectDir)
 		})
 	case "list":

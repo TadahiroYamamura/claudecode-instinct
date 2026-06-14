@@ -2,21 +2,10 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	"github.com/alecthomas/kong"
-	"github.com/google/uuid"
 )
-
-type InsertParams struct {
-	Content          string
-	TriggerDesc      string
-	Domain           string
-	Scope            string
-	ObservationCount int
-	ProjectID        string
-}
 
 type insertFlags struct {
 	Content string `kong:"required,name='content',help='instinct content'"`
@@ -54,15 +43,3 @@ func execInsert(ctx context.Context, repo Repository, f insertFlags, projectIDFn
 	return err
 }
 
-func insertInstinct(ctx context.Context, conn *sql.Conn, p InsertParams) (string, error) {
-	id := uuid.New().String()
-	_, err := conn.ExecContext(ctx,
-		`INSERT INTO instincts (id, content, trigger_desc, domain, scope, observation_count, project_id)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		id, p.Content, p.TriggerDesc, p.Domain, p.Scope, p.ObservationCount, p.ProjectID,
-	)
-	if err != nil {
-		return "", fmt.Errorf("insert instinct: %w", err)
-	}
-	return id, nil
-}

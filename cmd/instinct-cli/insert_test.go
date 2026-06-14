@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"path/filepath"
 	"testing"
+
+	doltrepo "github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/dolt"
 )
 
 // execInsertはRepositoryを通じてinstinctを保存する
@@ -53,7 +55,7 @@ func setupTestDB(t *testing.T) (context.Context, *sql.Conn) {
 func TestRunInsert_StoresRecordFromFlags(t *testing.T) {
 	ctx, conn := setupTestDB(t)
 
-	err := runInsert(ctx, NewDoltRepository(conn), []string{
+	err := runInsert(ctx, doltrepo.NewRepository(conn), []string{
 		"--content", "git push前にテストを実行する",
 		"--trigger", "git push時",
 		"--domain", "git",
@@ -86,7 +88,7 @@ func TestRunInsert_StoresRecordFromFlags(t *testing.T) {
 func TestRunInsert_CountIsRequired(t *testing.T) {
 	ctx, conn := setupTestDB(t)
 
-	err := runInsert(ctx, NewDoltRepository(conn), []string{
+	err := runInsert(ctx, doltrepo.NewRepository(conn), []string{
 		"--content", "何か知見",
 		"--trigger", "何かのとき",
 	}, func(string) (string, error) { return "abc123def456", nil })

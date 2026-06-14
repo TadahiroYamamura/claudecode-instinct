@@ -6,7 +6,13 @@ import (
 	"fmt"
 	"os/exec"
 	"testing"
+
+	doltrepo "github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/dolt"
 )
+
+func insertInstinct(ctx context.Context, conn *sql.Conn, p InsertParams) (string, error) {
+	return doltrepo.NewRepository(conn).InsertInstinct(ctx, p)
+}
 
 func mustRun(t *testing.T, name string, args ...string) {
 	t.Helper()

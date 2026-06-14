@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	doltrepo "github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/dolt"
 )
 
 
@@ -182,7 +184,7 @@ func TestDispatch_ConnectCommand_RoutesToExecConnect(t *testing.T) {
 func TestCLI_InsertCommand_StoresRecord(t *testing.T) {
 	ctx, conn := setupTestDB(t)
 
-	err := execInsert(ctx, NewDoltRepository(conn), insertFlags{
+	err := execInsert(ctx, doltrepo.NewRepository(conn), insertFlags{
 		Content: "テスト前に仕様を確認する",
 		Trigger: "テスト実行時",
 		Domain:  "testing",
