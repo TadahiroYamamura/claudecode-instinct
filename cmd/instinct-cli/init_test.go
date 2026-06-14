@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -245,5 +247,28 @@ func TestInit_WritesUserConfig(t *testing.T) {
 	}
 	if !strings.Contains(string(data), "branch: alice") {
 		t.Errorf("config.user.yml should contain branch: alice, got:\n%s", data)
+	}
+}
+
+// execInit はエラー発生時に作成した .instinct-db ディレクトリを削除する
+func TestExecInit_CleansUpDbDirOnError(t *testing.T) {
+	projectDir := t.TempDir()
+	mustRun(t, "git", "-C", projectDir, "init")
+
+	failingRepoFn := func(_ *sql.Conn) Repository {
+		return &stubRepository{
+			commit: func(_ context.Context, _ string) error {
+				return errors.New("commit failed")
+			},
+		}
+	}
+
+	if err := execInit(projectDir, initParams{Yes: true}, nil, io.Discard, failingRepoFn); err == nil {
+		t.Fatal("expected error from execInit")
+	}
+
+	dbDir := filepath.Join(projectDir, ".instinct-db")
+	if _, statErr := os.Stat(dbDir); !os.IsNotExist(statErr) {
+		t.Error("expected dbDir to be removed after error")
 	}
 }

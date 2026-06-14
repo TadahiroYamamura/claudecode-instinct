@@ -16,7 +16,7 @@ type initParams struct {
 	Yes        bool
 }
 
-func execInit(projectDir string, params initParams, in io.Reader, out io.Writer, repoFn func(*sql.Conn) Repository) error {
+func execInit(projectDir string, params initParams, in io.Reader, out io.Writer, repoFn func(*sql.Conn) Repository) (finalErr error) {
 	ctx := context.Background()
 	defaultBranch, _ := gitConfigValue("user.name")
 
@@ -48,9 +48,21 @@ func execInit(projectDir string, params initParams, in io.Reader, out io.Writer,
 	dbDir := instinctDbDir(projectDir)
 	dataDir := instinctDataDir(projectDir)
 
+	_, statErr := os.Stat(dbDir)
+	dbDirIsNew := os.IsNotExist(statErr)
+
 	if err := setupDB(ctx, dataDir); err != nil {
 		return err
 	}
+	defer func() {
+		if finalErr != nil {
+			if dbDirIsNew {
+				os.RemoveAll(dbDir) //nolint:errcheck
+			} else {
+				os.RemoveAll(dataDir) //nolint:errcheck
+			}
+		}
+	}()
 
 	conn, cleanup, err := openConn(ctx, dataDir)
 	if err != nil {

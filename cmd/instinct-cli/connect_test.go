@@ -4,8 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -417,5 +419,34 @@ func TestConvertRemoteURL_SCPToGitSSH(t *testing.T) {
 		if got := convertRemoteURL(c.in); got != c.want {
 			t.Errorf("convertRemoteURL(%q) = %q, want %q", c.in, got, c.want)
 		}
+	}
+}
+
+// execConnect はcloneパスでエラー発生時に作成した dataDir を削除する
+func TestExecConnect_CleansUpDataDirOnCloneError(t *testing.T) {
+	projectDir := t.TempDir()
+	dbDir := filepath.Join(projectDir, ".instinct-db")
+
+	if err := os.MkdirAll(dbDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll dbDir: %v", err)
+	}
+	if err := writeTeamConfig(dbDir, "", "main", ""); err != nil {
+		t.Fatalf("writeTeamConfig: %v", err)
+	}
+
+	partialClone := func(_ context.Context, dataDir string, _, _, _ string) error {
+		if err := os.MkdirAll(dataDir, 0o755); err != nil {
+			t.Fatalf("MkdirAll: %v", err)
+		}
+		return errors.New("clone failed")
+	}
+
+	if err := execConnect(projectDir, connectParams{Branch: "alice", Yes: true}, nil, io.Discard, partialClone, fakeRepoFn); err == nil {
+		t.Fatal("expected error from execConnect")
+	}
+
+	dataDir := filepath.Join(dbDir, "data")
+	if _, statErr := os.Stat(dataDir); !os.IsNotExist(statErr) {
+		t.Error("expected dataDir to be removed after clone error")
 	}
 }

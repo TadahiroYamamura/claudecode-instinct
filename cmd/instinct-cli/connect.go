@@ -40,7 +40,7 @@ type connectParams struct {
 	Yes       bool
 }
 
-func execConnect(projectDir string, params connectParams, in io.Reader, out io.Writer, cloneFn doltCloneFunc, repoFn func(*sql.Conn) Repository) error {
+func execConnect(projectDir string, params connectParams, in io.Reader, out io.Writer, cloneFn doltCloneFunc, repoFn func(*sql.Conn) Repository) (finalErr error) {
 	dbDir := instinctDbDir(projectDir)
 
 	cfg, err := loadConfig(dbDir)
@@ -72,8 +72,14 @@ func execConnect(projectDir string, params connectParams, in io.Reader, out io.W
 	if _, statErr := os.Stat(dataDir); os.IsNotExist(statErr) {
 		// clone path（2人目）: ローカルDBが存在しない
 		if err := cloneFn(ctx, dataDir, cfg.Dolt.Refs, cfg.Dolt.TeamBranch, cfg.Dolt.RemoteURL); err != nil {
+			os.RemoveAll(dataDir) //nolint:errcheck
 			return err
 		}
+		defer func() {
+			if finalErr != nil {
+				os.RemoveAll(dataDir) //nolint:errcheck
+			}
+		}()
 		defaultBranch, _ := gitConfigValue("user.name")
 		branch, err := resolve(params.Branch, sanitizeBranchName(defaultBranch), "Branch")
 		if err != nil {
