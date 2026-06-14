@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"database/sql"
 	"fmt"
 	"io"
 	"os"
@@ -36,7 +37,7 @@ type connectParams struct {
 	Yes       bool
 }
 
-func execConnect(projectDir string, params connectParams, in io.Reader, out io.Writer, cloneFn doltCloneFunc, pushFn doltPushFunc) error {
+func execConnect(projectDir string, params connectParams, in io.Reader, out io.Writer, cloneFn doltCloneFunc, repoFn func(*sql.Conn) Repository) error {
 	dbDir := instinctDbDir(projectDir)
 
 	cfg, err := loadConfig(dbDir)
@@ -118,9 +119,10 @@ func execConnect(projectDir string, params connectParams, in io.Reader, out io.W
 		return err
 	}
 
-	ensureRemote(ctx, conn, refs, remoteURL)
+	repo := repoFn(conn)
+	repo.EnsureRemote(ctx, refs, remoteURL)
 
-	if err := pushFn(ctx, conn, "origin", cfg.Dolt.TeamBranch); err != nil {
+	if err := repo.Upload(ctx, "origin", cfg.Dolt.TeamBranch); err != nil {
 		return err
 	}
 

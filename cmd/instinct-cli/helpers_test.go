@@ -44,7 +44,7 @@ func fakeCloneFail(_ context.Context, _ string, _, _, _ string) error {
 	return fmt.Errorf("remote team branch not found")
 }
 
-func fakePush(_ context.Context, _ *sql.Conn, _, _ string) error { return nil }
+func fakeRepoFn(_ *sql.Conn) Repository { return &stubRepository{} }
 
 type stubRepository struct {
 	insertInstinct      func(ctx context.Context, p InsertParams) (string, error)
@@ -56,6 +56,10 @@ type stubRepository struct {
 	mergeAndDelete       func(ctx context.Context, winner, loser InstinctRow) error
 	commit               func(ctx context.Context, message string) error
 	submitToReviewQueue  func(ctx context.Context, teamBranch string, rows []InstinctRow, personalBranch, submittedBy string) error
+	upload               func(ctx context.Context, remote, branch string) error
+	sync                 func(ctx context.Context, remote, branch string) error
+	ensureRemote         func(ctx context.Context, refs, remoteURL string)
+	checkout             func(ctx context.Context, branch string) error
 }
 
 func (s *stubRepository) InsertInstinct(ctx context.Context, p InsertParams) (string, error) {
@@ -117,6 +121,33 @@ func (s *stubRepository) Commit(ctx context.Context, message string) error {
 func (s *stubRepository) SubmitToReviewQueue(ctx context.Context, teamBranch string, rows []InstinctRow, personalBranch, submittedBy string) error {
 	if s.submitToReviewQueue != nil {
 		return s.submitToReviewQueue(ctx, teamBranch, rows, personalBranch, submittedBy)
+	}
+	return nil
+}
+
+func (s *stubRepository) Upload(ctx context.Context, remote, branch string) error {
+	if s.upload != nil {
+		return s.upload(ctx, remote, branch)
+	}
+	return nil
+}
+
+func (s *stubRepository) Sync(ctx context.Context, remote, branch string) error {
+	if s.sync != nil {
+		return s.sync(ctx, remote, branch)
+	}
+	return nil
+}
+
+func (s *stubRepository) EnsureRemote(ctx context.Context, refs, remoteURL string) {
+	if s.ensureRemote != nil {
+		s.ensureRemote(ctx, refs, remoteURL)
+	}
+}
+
+func (s *stubRepository) Checkout(ctx context.Context, branch string) error {
+	if s.checkout != nil {
+		return s.checkout(ctx, branch)
 	}
 	return nil
 }

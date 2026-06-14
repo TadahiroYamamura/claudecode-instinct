@@ -45,4 +45,8 @@ type Repository interface {
 	MergeAndDelete(ctx context.Context, winner, loser InstinctRow) error
 	Commit(ctx context.Context, message string) error
 	SubmitToReviewQueue(ctx context.Context, teamBranch string, rows []InstinctRow, personalBranch, submittedBy string) error
+	Upload(ctx context.Context, remote, branch string) error
+	Sync(ctx context.Context, remote, branch string) error
+	EnsureRemote(ctx context.Context, refs, remoteURL string)
+	Checkout(ctx context.Context, branch string) error
 }

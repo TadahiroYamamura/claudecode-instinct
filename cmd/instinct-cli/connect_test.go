@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	doltrepo "github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/dolt"
 )
 
 // 1人目ケース: -yフラグでgit remote originとプロジェクト名からのデフォルト値を使ってpushできる
@@ -19,17 +21,19 @@ func TestConnect_UsesDefaultsWithYesFlag(t *testing.T) {
 		t.Fatalf("execInit: %v", err)
 	}
 
-	var pushed bool
-	capturePush := func(ctx context.Context, conn *sql.Conn, remote, branch string) error {
-		pushed = true
-		return nil
+	var uploaded bool
+	repoFn := func(_ *sql.Conn) Repository {
+		return &stubRepository{upload: func(_ context.Context, _, _ string) error {
+			uploaded = true
+			return nil
+		}}
 	}
 
-	if err := execConnect(dir, connectParams{Yes: true}, nil, io.Discard, fakeCloneFail, capturePush); err != nil {
+	if err := execConnect(dir, connectParams{Yes: true}, nil, io.Discard, fakeCloneFail, repoFn); err != nil {
 		t.Fatalf("execConnect: %v", err)
 	}
-	if !pushed {
-		t.Error("expected push to be called with defaults")
+	if !uploaded {
+		t.Error("expected upload to be called with defaults")
 	}
 }
 
@@ -42,7 +46,7 @@ func TestConnect_UsesInteractiveInputForRemoteURL(t *testing.T) {
 	}
 
 	in := strings.NewReader("git@github.com:test/repo.git\n")
-	if err := execConnect(dir, connectParams{}, in, io.Discard, fakeCloneFail, fakePush); err != nil {
+	if err := execConnect(dir, connectParams{}, in, io.Discard, fakeCloneFail, fakeRepoFn); err != nil {
 		t.Fatalf("execConnect: %v", err)
 	}
 
@@ -63,7 +67,7 @@ func TestConnect_ErrorWhenRemoteURLMissingAndNoGitOrigin(t *testing.T) {
 		t.Fatalf("execInit: %v", err)
 	}
 
-	err := execConnect(dir, connectParams{}, nil, io.Discard, fakeCloneFail, fakePush)
+	err := execConnect(dir, connectParams{}, nil, io.Discard, fakeCloneFail, fakeRepoFn)
 	const wantErr = "remote URL is not set: run 'git remote add origin <url>' to configure a remote"
 	if err == nil || err.Error() != wantErr {
 		t.Errorf("error: got %v, want %q", err, wantErr)
@@ -74,7 +78,6 @@ func TestConnect_ErrorWhenRemoteURLMissingAndNoGitOrigin(t *testing.T) {
 func TestConnect_ErrorWhenTeamBranchNotSet(t *testing.T) {
 	dir := t.TempDir()
 	mustRun(t, "git", "-C", dir, "init")
-	// team_branchが空のconfig.team.ymlを手動作成
 	dbDir := instinctDbDir(dir)
 	if err := os.MkdirAll(dbDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
@@ -86,7 +89,7 @@ func TestConnect_ErrorWhenTeamBranchNotSet(t *testing.T) {
 	err := execConnect(dir, connectParams{
 		RemoteURL: "https://github.com/test/repo.git",
 		Refs:      "refs/dolt/myproject",
-	}, nil, io.Discard, fakeCloneFail, fakePush)
+	}, nil, io.Discard, fakeCloneFail, fakeRepoFn)
 	if err == nil {
 		t.Error("expected error when team_branch is not set")
 	}
@@ -100,21 +103,23 @@ func TestConnect_PushesTeamBranchOnFirstUser(t *testing.T) {
 		t.Fatalf("execInit: %v", err)
 	}
 
-	var pushed bool
-	capturePush := func(ctx context.Context, conn *sql.Conn, remote, branch string) error {
-		pushed = true
-		return nil
+	var uploaded bool
+	repoFn := func(_ *sql.Conn) Repository {
+		return &stubRepository{upload: func(_ context.Context, _, _ string) error {
+			uploaded = true
+			return nil
+		}}
 	}
 
 	if err := execConnect(dir, connectParams{
 		RemoteURL: "https://github.com/test/repo.git",
 		Refs:      "refs/dolt/myproject",
-	}, nil, io.Discard, fakeCloneFail, capturePush); err != nil {
+	}, nil, io.Discard, fakeCloneFail, repoFn); err != nil {
 		t.Fatalf("execConnect: %v", err)
 	}
 
-	if !pushed {
-		t.Error("expected push to be called")
+	if !uploaded {
+		t.Error("expected upload to be called")
 	}
 }
 
@@ -129,7 +134,7 @@ func TestConnect_UpdatesTeamConfigAfterPush(t *testing.T) {
 	if err := execConnect(dir, connectParams{
 		RemoteURL: "https://github.com/test/repo.git",
 		Refs:      "refs/dolt/myproject",
-	}, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
+	}, nil, io.Discard, fakeCloneFail, fakeRepoFn); err != nil {
 		t.Fatalf("execConnect: %v", err)
 	}
 
@@ -156,14 +161,19 @@ func TestConnect_RegistersRemoteWithCorrectRefsAndURL(t *testing.T) {
 	const remoteURL = "git+ssh://git@github.com/test/repo.git"
 	const refs = "refs/dolt/myproject"
 
+	realRepoFn := func(conn *sql.Conn) Repository {
+		real := doltrepo.NewRepository(conn)
+		return &stubRepository{
+			ensureRemote: func(ctx context.Context, r, u string) { real.EnsureRemote(ctx, r, u) },
+		}
+	}
 	if err := execConnect(dir, connectParams{
 		RemoteURL: remoteURL,
 		Refs:      refs,
-	}, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
+	}, nil, io.Discard, fakeCloneFail, realRepoFn); err != nil {
 		t.Fatalf("execConnect: %v", err)
 	}
 
-	// dolt_remotesを照会してリモートが正しく登録されているか確認
 	conn, cleanup, err := openConn(t.Context(), instinctDataDir(dir))
 	if err != nil {
 		t.Fatalf("openConn: %v", err)
@@ -207,7 +217,7 @@ func TestConnect_UsesInteractiveInputForBranch(t *testing.T) {
 	}
 
 	in := strings.NewReader("bob\n")
-	if err := execConnect(dir, connectParams{}, in, io.Discard, fakeCloneWithDB, fakePush); err != nil {
+	if err := execConnect(dir, connectParams{}, in, io.Discard, fakeCloneWithDB, fakeRepoFn); err != nil {
 		t.Fatalf("execConnect: %v", err)
 	}
 
@@ -238,7 +248,7 @@ func TestConnect_ClonesWhenLocalDBAbsent(t *testing.T) {
 		return setupDB(ctx, dataDir)
 	}
 
-	if err := execConnect(dir, connectParams{}, nil, io.Discard, captureClone, fakePush); err != nil {
+	if err := execConnect(dir, connectParams{}, nil, io.Discard, captureClone, fakeRepoFn); err != nil {
 		t.Fatalf("execConnect: %v", err)
 	}
 	if !cloned {
@@ -262,7 +272,7 @@ func TestConnect_WritesUserConfigAfterClone(t *testing.T) {
 		return setupDB(ctx, dataDir)
 	}
 
-	if err := execConnect(dir, connectParams{Branch: "alice"}, nil, io.Discard, fakeCloneNoop, fakePush); err != nil {
+	if err := execConnect(dir, connectParams{Branch: "alice"}, nil, io.Discard, fakeCloneNoop, fakeRepoFn); err != nil {
 		t.Fatalf("execConnect: %v", err)
 	}
 
@@ -291,7 +301,7 @@ func TestConnect_CreatesPersonalBranchAfterClone(t *testing.T) {
 		return setupDB(ctx, dataDir)
 	}
 
-	if err := execConnect(dir, connectParams{Branch: "alice"}, nil, io.Discard, fakeCloneWithDB, fakePush); err != nil {
+	if err := execConnect(dir, connectParams{Branch: "alice"}, nil, io.Discard, fakeCloneWithDB, fakeRepoFn); err != nil {
 		t.Fatalf("execConnect: %v", err)
 	}
 
@@ -320,7 +330,7 @@ func TestConnect_ErrorWhenTeamConfigAbsent(t *testing.T) {
 	err := execConnect(dir, connectParams{
 		RemoteURL: "https://github.com/test/repo.git",
 		Refs:      "refs/dolt/myproject",
-	}, nil, io.Discard, fakeCloneFail, fakePush)
+	}, nil, io.Discard, fakeCloneFail, fakeRepoFn)
 	if err == nil {
 		t.Error("expected error when config.team.yml is absent")
 	}

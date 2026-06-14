@@ -125,7 +125,7 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 	case "init":
 		return execInit(cwd, initParams{Branch: cli.Init.Branch, TeamBranch: cli.Init.TeamBranch, Yes: cli.Init.Yes}, in, out)
 	case "connect":
-		return execConnect(cwd, connectParams{Branch: cli.Connect.Branch, RemoteURL: cli.Connect.RemoteURL, Refs: cli.Connect.Refs, Yes: cli.Connect.Yes}, in, out, defaultDoltClone, defaultDoltPush)
+		return execConnect(cwd, connectParams{Branch: cli.Connect.Branch, RemoteURL: cli.Connect.RemoteURL, Refs: cli.Connect.Refs, Yes: cli.Connect.Yes}, in, out, defaultDoltClone, func(conn *sql.Conn) Repository { return doltrepo.NewRepository(conn) })
 	case "insert":
 		conn, projectDir, cleanup, err := openProjectConn(cwd)
 		if err != nil {
@@ -201,7 +201,7 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 		if err != nil {
 			return err
 		}
-		return execPush(context.Background(), conn, cfg, userCfg.Dolt.Branch, defaultDoltPush, out)
+		return execPush(context.Background(), doltrepo.NewRepository(conn), cfg, userCfg.Dolt.Branch, out)
 	case "pull":
 		conn, projectDir, cleanup, err := openProjectConn(cwd)
 		if err != nil {
@@ -216,7 +216,7 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 		if err != nil {
 			return err
 		}
-		return execPull(context.Background(), conn, cfg, userCfg.Dolt.Branch, defaultDoltPull, out)
+		return execPull(context.Background(), doltrepo.NewRepository(conn), cfg, userCfg.Dolt.Branch, out)
 	default:
 		return fmt.Errorf("unknown command: %s", kctx.Command())
 	}

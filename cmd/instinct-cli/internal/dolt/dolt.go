@@ -164,6 +164,25 @@ func (r *Repository) SubmitToReviewQueue(ctx context.Context, teamBranch string,
 	return nil
 }
 
+func (r *Repository) Upload(ctx context.Context, remote, branch string) error {
+	_, err := r.conn.ExecContext(ctx, "CALL dolt_push(?, ?)", remote, branch)
+	return err
+}
+
+func (r *Repository) Sync(ctx context.Context, remote, branch string) error {
+	_, err := r.conn.ExecContext(ctx, "CALL dolt_pull(?, ?)", remote, branch)
+	return err
+}
+
+func (r *Repository) EnsureRemote(ctx context.Context, refs, remoteURL string) {
+	r.conn.ExecContext(ctx, "CALL dolt_remote('add', '--ref', ?, 'origin', ?)", refs, remoteURL) //nolint:errcheck
+}
+
+func (r *Repository) Checkout(ctx context.Context, branch string) error {
+	_, err := r.conn.ExecContext(ctx, "CALL dolt_checkout(?)", branch)
+	return err
+}
+
 func (r *Repository) Commit(ctx context.Context, message string) error {
 	_, err := r.conn.ExecContext(ctx, "CALL dolt_commit('-Am', ?)", message)
 	return err
