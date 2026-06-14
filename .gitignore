@@ -9,3 +9,6 @@
 
 # Dolt remote cache (created by tests that use dolt_clone)
 .dolt/
+
+# Go build artifacts
+cmd/instinct-cli/instinct-cli
