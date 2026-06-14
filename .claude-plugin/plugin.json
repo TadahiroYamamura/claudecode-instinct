@@ -1,6 +1,6 @@
 {
   "name": "claudecode-instinct",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Observe Claude Code tool usage and accumulate reusable work insights (instincts) into Dolt",
   "author": {
     "name": "Tadahiro Yamamura",
