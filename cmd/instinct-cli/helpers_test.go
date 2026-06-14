@@ -14,6 +14,10 @@ func insertInstinct(ctx context.Context, conn *sql.Conn, p InsertParams) (string
 	return doltrepo.NewRepository(conn).InsertInstinct(ctx, p)
 }
 
+func listInstincts(ctx context.Context, conn *sql.Conn) ([]InstinctRow, error) {
+	return doltrepo.NewRepository(conn).ListInstincts(ctx)
+}
+
 func mustRun(t *testing.T, name string, args ...string) {
 	t.Helper()
 	if out, err := exec.Command(name, args...).CombinedOutput(); err != nil {
@@ -36,6 +40,7 @@ func fakePush(_ context.Context, _ *sql.Conn, _, _ string) error { return nil }
 
 type stubRepository struct {
 	insertInstinct func(ctx context.Context, p InsertParams) (string, error)
+	listInstincts  func(ctx context.Context) ([]InstinctRow, error)
 }
 
 func (s *stubRepository) InsertInstinct(ctx context.Context, p InsertParams) (string, error) {
@@ -43,4 +48,11 @@ func (s *stubRepository) InsertInstinct(ctx context.Context, p InsertParams) (st
 		return s.insertInstinct(ctx, p)
 	}
 	return "stub-id", nil
+}
+
+func (s *stubRepository) ListInstincts(ctx context.Context) ([]InstinctRow, error) {
+	if s.listInstincts != nil {
+		return s.listInstincts(ctx)
+	}
+	return nil, nil
 }

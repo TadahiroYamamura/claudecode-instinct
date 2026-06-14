@@ -7,6 +7,8 @@ import (
 	"io"
 
 	"github.com/google/uuid"
+
+	doltrepo "github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/dolt"
 )
 
 const (
@@ -38,7 +40,7 @@ func mergeAndDelete(ctx context.Context, conn *sql.Conn, winner, loser InstinctR
 }
 
 func execDedup(ctx context.Context, conn *sql.Conn, judge DedupJudge, threshold float64, w io.Writer) error {
-	instincts, err := listInstincts(ctx, conn)
+	instincts, err := doltrepo.NewRepository(conn).ListInstincts(ctx)
 	if err != nil {
 		return err
 	}

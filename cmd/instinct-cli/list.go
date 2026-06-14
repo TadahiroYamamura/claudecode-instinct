@@ -8,24 +8,6 @@ import (
 	"text/tabwriter"
 )
 
-func listInstincts(ctx context.Context, conn *sql.Conn) ([]InstinctRow, error) {
-	rows, err := conn.QueryContext(ctx, "SELECT id, content, trigger_desc, domain, observation_count, scope, created_at FROM instincts ORDER BY created_at DESC")
-	if err != nil {
-		return nil, fmt.Errorf("list instincts: %w", err)
-	}
-	defer rows.Close()
-
-	var result []InstinctRow
-	for rows.Next() {
-		var r InstinctRow
-		if err := rows.Scan(&r.ID, &r.Content, &r.TriggerDesc, &r.Domain, &r.ObservationCount, &r.Scope, &r.CreatedAt); err != nil {
-			return nil, fmt.Errorf("scan: %w", err)
-		}
-		result = append(result, r)
-	}
-	return result, rows.Err()
-}
-
 const (
 	contentMaxRunes = 40
 	shortIDLen      = 8
@@ -92,8 +74,8 @@ func execListMerged(ctx context.Context, conn *sql.Conn, cfg *InstinctConfig, w 
 	return printInstincts(rows, w)
 }
 
-func execList(ctx context.Context, conn *sql.Conn, w io.Writer) error {
-	rows, err := listInstincts(ctx, conn)
+func execList(ctx context.Context, repo Repository, w io.Writer) error {
+	rows, err := repo.ListInstincts(ctx)
 	if err != nil {
 		return err
 	}
