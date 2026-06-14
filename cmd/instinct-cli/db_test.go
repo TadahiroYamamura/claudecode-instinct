@@ -3,8 +3,9 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
+
+	doltrepo "github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/dolt"
 )
 
 // git configに存在しないキーはエラーを返す
@@ -15,29 +16,16 @@ func TestGitConfigValue_ReturnsErrorWhenKeyNotSet(t *testing.T) {
 	}
 }
 
-// doltDSNに渡したname/emailがDSNに含まれる
-func TestDoltDSN_IncludesCommitNameAndEmail(t *testing.T) {
-	dsn := doltDSN("/tmp/data", "Taro Yamada", "taro@example.com")
-
-	if !strings.Contains(dsn, "Taro") {
-		t.Errorf("DSN does not include commit name, got: %s", dsn)
-	}
-	if !strings.Contains(dsn, "taro@example.com") || strings.Contains(dsn, "instinct@local") {
-		t.Errorf("DSN does not include commit email, got: %s", dsn)
-	}
-}
-
 // openConnはinstincts DBが存在しない場合エラーを返す
 func TestOpenConn_ErrorWhenDatabaseAbsent(t *testing.T) {
 	dir := t.TempDir()
 	mustRun(t, "git", "-C", dir, "init")
-	// doltファイルは作るがCREATE DATABASEは実行しない
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	db, err := openDoltDB(dir)
+	db, err := doltrepo.OpenDB(dir, "Test", "test@test.com")
 	if err != nil {
-		t.Fatalf("openDoltDB: %v", err)
+		t.Fatalf("OpenDB: %v", err)
 	}
 	db.Close()
 
@@ -54,7 +42,6 @@ func TestOpenConn_ErrorWhenDatabaseAbsent(t *testing.T) {
 func TestOpenProjectConn_ErrorWhenUserConfigAbsent(t *testing.T) {
 	dir := t.TempDir()
 	mustRun(t, "git", "-C", dir, "init")
-	// config.user.yml を作成せずDBだけ初期化する（init未実施相当）
 	if err := setupDB(t.Context(), instinctDataDir(dir)); err != nil {
 		t.Fatalf("setupDB: %v", err)
 	}
@@ -99,7 +86,6 @@ func TestOpenProjectConn_CheckoutsPersonalBranch(t *testing.T) {
 		t.Fatalf("execInit: %v", err)
 	}
 
-	// "testuser" ブランチをDBに作成してからconfig.user.ymlを上書き
 	setupConn, cleanup, err := openConn(t.Context(), instinctDataDir(dir))
 	if err != nil {
 		t.Fatalf("openConn: %v", err)

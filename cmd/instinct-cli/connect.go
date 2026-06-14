@@ -8,26 +8,18 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+
+	doltrepo "github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/dolt"
 )
 
 type doltCloneFunc func(ctx context.Context, dataDir, refs, branch, remoteURL string) error
 
 var defaultDoltClone doltCloneFunc = func(ctx context.Context, dataDir, refs, branch, remoteURL string) error {
-	if err := os.MkdirAll(dataDir, 0o755); err != nil {
-		return fmt.Errorf("mkdir: %w", err)
-	}
-	db, err := openDoltDB(dataDir)
+	name, email, err := gitIdentity()
 	if err != nil {
 		return err
 	}
-	defer db.Close()
-	conn, err := db.Conn(ctx)
-	if err != nil {
-		return fmt.Errorf("get conn: %w", err)
-	}
-	defer conn.Close()
-	_, err = conn.ExecContext(ctx, "CALL dolt_clone('--ref', ?, '--branch', ?, ?, '.')", refs, branch, remoteURL)
-	return err
+	return doltrepo.Clone(ctx, dataDir, refs, branch, remoteURL, name, email)
 }
 
 type connectParams struct {

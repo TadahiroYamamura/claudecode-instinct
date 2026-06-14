@@ -27,7 +27,7 @@ func TestInit_DBHasTablesAndInitialCommit(t *testing.T) {
 		var count int
 		if err := conn.QueryRowContext(t.Context(),
 			"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=? AND table_name=?",
-			dbName, table,
+			"instincts", table,
 		).Scan(&count); err != nil {
 			t.Fatalf("query %s: %v", table, err)
 		}
