@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"io"
 	"text/tabwriter"
@@ -58,29 +57,3 @@ func execList(ctx context.Context, repo Repository, w io.Writer) error {
 }
 
 const defaultMediumThreshold = 6
-
-func listReviewInstincts(ctx context.Context, conn *sql.Conn, teamBranch string, minObservations int) ([]InstinctRow, error) {
-	// AS OF はプレースホルダー非対応のため Sprintf で埋め込む。
-	// teamBranch は config.yml 由来（ユーザー入力ではない）。
-	query := fmt.Sprintf(`
-		SELECT id, content, trigger_desc, domain, observation_count, scope, created_at
-		FROM instincts
-		WHERE id NOT IN (SELECT id FROM instincts AS OF '%s')
-		  AND observation_count >= ?
-		ORDER BY created_at DESC`, teamBranch)
-	rows, err := conn.QueryContext(ctx, query, minObservations)
-	if err != nil {
-		return nil, fmt.Errorf("list review instincts: %w", err)
-	}
-	defer rows.Close()
-
-	var result []InstinctRow
-	for rows.Next() {
-		var r InstinctRow
-		if err := rows.Scan(&r.ID, &r.Content, &r.TriggerDesc, &r.Domain, &r.ObservationCount, &r.Scope, &r.CreatedAt); err != nil {
-			return nil, fmt.Errorf("scan: %w", err)
-		}
-		result = append(result, r)
-	}
-	return result, rows.Err()
-}

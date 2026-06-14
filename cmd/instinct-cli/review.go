@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"golang.org/x/term"
+
+	doltrepo "github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/dolt"
 )
 
 type reviewSelector func(rows []InstinctRow, out io.Writer) ([]string, error)
@@ -25,7 +27,7 @@ func execReview(ctx context.Context, conn *sql.Conn, cfg *InstinctConfig,
 		minObs = defaultMediumThreshold
 	}
 
-	rows, err := listReviewInstincts(ctx, conn, teamBranch, minObs)
+	rows, err := doltrepo.NewRepository(conn).ListReviewInstincts(ctx, teamBranch, minObs)
 	if err != nil {
 		return err
 	}

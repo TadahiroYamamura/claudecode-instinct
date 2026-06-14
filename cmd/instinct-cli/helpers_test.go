@@ -18,6 +18,10 @@ func listInstincts(ctx context.Context, conn *sql.Conn) ([]InstinctRow, error) {
 	return doltrepo.NewRepository(conn).ListInstincts(ctx)
 }
 
+func listReviewInstincts(ctx context.Context, conn *sql.Conn, teamBranch string, minObservations int) ([]InstinctRow, error) {
+	return doltrepo.NewRepository(conn).ListReviewInstincts(ctx, teamBranch, minObservations)
+}
+
 func mustRun(t *testing.T, name string, args ...string) {
 	t.Helper()
 	if out, err := exec.Command(name, args...).CombinedOutput(); err != nil {
