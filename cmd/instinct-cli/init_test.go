@@ -42,8 +42,8 @@ func TestInit_DBHasTablesAndInitialCommit(t *testing.T) {
 	).Scan(&commitCount); err != nil {
 		t.Fatalf("query dolt_log: %v", err)
 	}
-	if commitCount != 1 {
-		t.Errorf("expected 1 commit, got %d", commitCount)
+	if commitCount != 2 {
+		t.Errorf("expected 2 commits (dolt root + init schema), got %d", commitCount)
 	}
 }
 
@@ -69,6 +69,32 @@ func TestInit_CreatesPersonalBranch(t *testing.T) {
 	}
 	if branch != "alice" {
 		t.Errorf("expected branch alice, got %q", branch)
+	}
+}
+
+// initはDoltにチームブランチを作成する
+func TestInit_CreatesTeamBranchInDolt(t *testing.T) {
+	dir := t.TempDir()
+	mustRun(t, "git", "-C", dir, "init")
+
+	if err := execInit(dir, initParams{TeamBranch: "develop", Yes: true}, nil, io.Discard); err != nil {
+		t.Fatalf("execInit: %v", err)
+	}
+
+	conn, cleanup, err := openConn(t.Context(), instinctDataDir(dir))
+	if err != nil {
+		t.Fatalf("openConn: %v", err)
+	}
+	defer cleanup()
+
+	var count int
+	if err := conn.QueryRowContext(t.Context(),
+		"SELECT COUNT(*) FROM dolt_branches WHERE name = ?", "develop",
+	).Scan(&count); err != nil {
+		t.Fatalf("query dolt_branches: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("team branch 'develop' not found in dolt_branches")
 	}
 }
 

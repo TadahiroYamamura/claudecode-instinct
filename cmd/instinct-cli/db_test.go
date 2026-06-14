@@ -1,7 +1,7 @@
 package main
 
 import (
-	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -27,11 +27,34 @@ func TestDoltDSN_IncludesCommitNameAndEmail(t *testing.T) {
 	}
 }
 
-// openProjectConnはconfig.user.ymlが存在しない場合エラーを返す（setup未実施を意味する）
+// openConnはinstincts DBが存在しない場合エラーを返す
+func TestOpenConn_ErrorWhenDatabaseAbsent(t *testing.T) {
+	dir := t.TempDir()
+	mustRun(t, "git", "-C", dir, "init")
+	// doltファイルは作るがCREATE DATABASEは実行しない
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	db, err := openDoltDB(dir)
+	if err != nil {
+		t.Fatalf("openDoltDB: %v", err)
+	}
+	db.Close()
+
+	_, cleanup, err := openConn(t.Context(), dir)
+	if cleanup != nil {
+		defer cleanup()
+	}
+	if err == nil {
+		t.Error("expected error when instincts database is absent")
+	}
+}
+
+// openProjectConnはconfig.user.ymlが存在しない場合エラーを返す（init未実施を意味する）
 func TestOpenProjectConn_ErrorWhenUserConfigAbsent(t *testing.T) {
 	dir := t.TempDir()
-	gitInitWithRemote(t, dir)
-	// config.user.yml を作成せずDBだけ初期化する（setup未実施相当）
+	mustRun(t, "git", "-C", dir, "init")
+	// config.user.yml を作成せずDBだけ初期化する（init未実施相当）
 	if err := setupDB(t.Context(), instinctDataDir(dir)); err != nil {
 		t.Fatalf("setupDB: %v", err)
 	}
@@ -45,12 +68,12 @@ func TestOpenProjectConn_ErrorWhenUserConfigAbsent(t *testing.T) {
 	}
 }
 
-// openProjectConnはsetup後にDBへの接続に成功する
-func TestOpenProjectConn_SucceedsAfterSetup(t *testing.T) {
+// openProjectConnはinit後にDBへの接続に成功する
+func TestOpenProjectConn_SucceedsAfterInit(t *testing.T) {
 	dir := t.TempDir()
-	gitInitWithRemote(t, dir)
-	if err := execSetup(dir, setupParams{Yes: true}, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
-		t.Fatalf("execSetup: %v", err)
+	mustRun(t, "git", "-C", dir, "init")
+	if err := execInit(dir, initParams{Yes: true}, nil, nil); err != nil {
+		t.Fatalf("execInit: %v", err)
 	}
 
 	conn, projectDir, cleanup, err := openProjectConn(dir)
@@ -70,10 +93,10 @@ func TestOpenProjectConn_SucceedsAfterSetup(t *testing.T) {
 // openProjectConnは指定ブランチにcheckoutする
 func TestOpenProjectConn_CheckoutsPersonalBranch(t *testing.T) {
 	dir := t.TempDir()
-	gitInitWithRemote(t, dir)
+	mustRun(t, "git", "-C", dir, "init")
 	dbDir := filepath.Join(dir, ".instinct-db")
-	if err := execSetup(dir, setupParams{Yes: true}, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
-		t.Fatalf("execSetup: %v", err)
+	if err := execInit(dir, initParams{Yes: true}, nil, nil); err != nil {
+		t.Fatalf("execInit: %v", err)
 	}
 
 	// "testuser" ブランチをDBに作成してからconfig.user.ymlを上書き

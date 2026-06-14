@@ -1,0 +1,128 @@
+package main
+
+import (
+	"bufio"
+	"context"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+)
+
+type doltCloneFunc func(ctx context.Context, dataDir, refs, branch, remoteURL string) error
+
+var defaultDoltClone doltCloneFunc = func(ctx context.Context, dataDir, refs, branch, remoteURL string) error {
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+		return fmt.Errorf("mkdir: %w", err)
+	}
+	db, err := openDoltDB(dataDir)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("get conn: %w", err)
+	}
+	defer conn.Close()
+	_, err = conn.ExecContext(ctx, "CALL dolt_clone('--ref', ?, '--branch', ?, ?, '.')", refs, branch, remoteURL)
+	return err
+}
+
+type connectParams struct {
+	RemoteURL string
+	Refs      string
+	Branch    string
+	Yes       bool
+}
+
+func execConnect(projectDir string, params connectParams, in io.Reader, out io.Writer, cloneFn doltCloneFunc, pushFn doltPushFunc) error {
+	dbDir := instinctDbDir(projectDir)
+
+	cfg, err := loadConfig(dbDir)
+	if err != nil {
+		return fmt.Errorf("config.team.yml not found: run 'instinct-cli init' first")
+	}
+
+	if cfg.Dolt.TeamBranch == "" {
+		return fmt.Errorf("dolt.team_branch is not set in config.team.yml: please set it manually")
+	}
+
+	var reader *bufio.Reader
+	if in != nil {
+		reader = bufio.NewReader(in)
+	}
+	resolve := func(explicit, defaultVal, label string) (string, error) {
+		if explicit != "" {
+			return explicit, nil
+		}
+		if params.Yes || reader == nil {
+			return defaultVal, nil
+		}
+		return promptWithDefault(reader, out, label, defaultVal)
+	}
+
+	ctx := context.Background()
+	dataDir := instinctDataDir(projectDir)
+
+	if _, statErr := os.Stat(dataDir); os.IsNotExist(statErr) {
+		// clone path（2人目）: ローカルDBが存在しない
+		if err := cloneFn(ctx, dataDir, cfg.Dolt.Refs, cfg.Dolt.TeamBranch, cfg.Dolt.RemoteURL); err != nil {
+			return err
+		}
+		defaultBranch, _ := gitConfigValue("user.name")
+		branch, err := resolve(params.Branch, sanitizeBranchName(defaultBranch), "Branch")
+		if err != nil {
+			return err
+		}
+		cloneConn, cloneCleanup, err := openConn(ctx, dataDir)
+		if err != nil {
+			return err
+		}
+		defer cloneCleanup()
+		var branchCount int
+		if err := cloneConn.QueryRowContext(ctx,
+			"SELECT COUNT(*) FROM dolt_remote_branches WHERE name = ?", "origin/"+branch,
+		).Scan(&branchCount); err != nil {
+			return err
+		}
+		if branchCount > 0 {
+			_, err = cloneConn.ExecContext(ctx, "CALL dolt_checkout(?)", branch)
+		} else {
+			_, err = cloneConn.ExecContext(ctx, "CALL dolt_checkout('-b', ?)", branch)
+		}
+		if err != nil {
+			return err
+		}
+		return writeUserConfig(dbDir, branch)
+	}
+
+	// push path（1人目）: ローカルDBが存在する
+	conn, cleanup, err := openConn(ctx, dataDir)
+	if err != nil {
+		return fmt.Errorf("local DB not found: run 'instinct-cli init' first")
+	}
+	defer cleanup()
+	defaultRemoteURL, _ := gitOutput(projectDir, "remote", "get-url", "origin")
+	remoteURL, err := resolve(params.RemoteURL, defaultRemoteURL, "Remote URL")
+	if err != nil {
+		return err
+	}
+	if remoteURL == "" {
+		return fmt.Errorf("remote URL is not set: run 'git remote add origin <url>' to configure a remote")
+	}
+
+	defaultRefs := "refs/dolt/" + filepath.Base(projectDir)
+	refs, err := resolve(params.Refs, defaultRefs, "Refs")
+	if err != nil {
+		return err
+	}
+
+	ensureRemote(ctx, conn, refs, remoteURL)
+
+	if err := pushFn(ctx, conn, "origin", cfg.Dolt.TeamBranch); err != nil {
+		return err
+	}
+
+	return writeTeamConfig(dbDir, refs, cfg.Dolt.TeamBranch, remoteURL)
+}

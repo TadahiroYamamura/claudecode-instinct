@@ -35,17 +35,17 @@ func openProjectConn(cwd string) (*sql.Conn, string, func(), error) {
 	return conn, projectDir, cleanup, nil
 }
 
-type setupCmd struct {
-	Yes        bool   `kong:"short='y',help='Accept all defaults without prompting'"`
-	Branch     string `kong:"name='branch',short='b',help='Personal branch name (default: git config user.name)'"`
-	TeamBranch string `kong:"name='team-branch',help='Team branch name (default: main)'"`
-	RemoteURL  string `kong:"name='remote-url',short='r',help='Remote URL (default: git remote get-url origin)'"`
-}
-
 type initCmd struct {
 	Yes        bool   `kong:"short='y',help='Accept all defaults without prompting'"`
 	Branch     string `kong:"name='branch',short='b',help='Personal branch name (default: git config user.name)'"`
 	TeamBranch string `kong:"name='team-branch',help='Team branch name (default: main)'"`
+}
+
+type connectCmd struct {
+	Yes       bool   `kong:"short='y',help='Accept all defaults without prompting'"`
+	Branch    string `kong:"name='branch',short='b',help='Personal branch name (default: git config user.name)'"`
+	RemoteURL string `kong:"name='remote-url',short='r',help='Remote URL'"`
+	Refs      string `kong:"name='refs',help='Dolt refs namespace (e.g. refs/dolt/myproject)'"`
 }
 
 type listCmd struct {
@@ -66,8 +66,8 @@ type pushCmd struct{}
 type pullCmd struct{}
 
 type cliStruct struct {
-	Init   initCmd     `cmd:"" help:"Initialize .instinct-db locally (no remote required)"`
-	Setup  setupCmd    `cmd:"" help:"Initialize .instinct-db in current directory"`
+	Init    initCmd    `cmd:"" help:"Initialize .instinct-db locally (no remote required)"`
+	Connect connectCmd `cmd:"" help:"Connect .instinct-db to a remote (push or clone)"`
 	Insert insertFlags `cmd:"" help:"Insert an instinct"`
 	List   listCmd     `cmd:"" help:"List instincts"`
 	Show   showCmd     `cmd:"" help:"Show full details of an instinct"`
@@ -122,8 +122,8 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 	switch kctx.Command() {
 	case "init":
 		return execInit(cwd, initParams{Branch: cli.Init.Branch, TeamBranch: cli.Init.TeamBranch, Yes: cli.Init.Yes}, in, out)
-	case "setup":
-		return runSetup(cwd, cli.Setup, in, out)
+	case "connect":
+		return execConnect(cwd, connectParams{Branch: cli.Connect.Branch, RemoteURL: cli.Connect.RemoteURL, Refs: cli.Connect.Refs, Yes: cli.Connect.Yes}, in, out, defaultDoltClone, defaultDoltPush)
 	case "insert":
 		conn, projectDir, cleanup, err := openProjectConn(cwd)
 		if err != nil {

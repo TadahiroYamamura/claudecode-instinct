@@ -150,9 +150,9 @@ func TestDispatch_NoArgs_ReturnsUsageErrorNotProjectDirError(t *testing.T) {
 // dispatchはdedupサブコマンドをexecDedupにルーティングする（instinctが0件なのでjudgeは呼ばれない）
 func TestDispatch_DedupCommand_ZeroPairsWhenEmpty(t *testing.T) {
 	dir := t.TempDir()
-	gitInitWithRemote(t, dir)
-	if err := execSetup(dir, setupParams{Yes: true}, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
-		t.Fatalf("setup: %v", err)
+	mustRun(t, "git", "-C", dir, "init")
+	if err := execInit(dir, initParams{Yes: true}, nil, nil); err != nil {
+		t.Fatalf("execInit: %v", err)
 	}
 
 	var buf strings.Builder
@@ -164,17 +164,17 @@ func TestDispatch_DedupCommand_ZeroPairsWhenEmpty(t *testing.T) {
 	}
 }
 
-// dispatch(["setup"], dir)が.instinct-db/data/を作成する（initパス）
-func TestCLI_SetupCommand_CreatesInstinctDb(t *testing.T) {
+// dispatch(["connect"])が"connect"コマンドにルーティングされる（--remote-url未指定でエラー）
+func TestDispatch_ConnectCommand_RoutesToExecConnect(t *testing.T) {
 	dir := t.TempDir()
-	gitInitWithRemote(t, dir)
-
-	if err := execSetup(dir, setupParams{Yes: true}, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
-		t.Fatalf("dispatch: %v", err)
+	mustRun(t, "git", "-C", dir, "init")
+	if err := execInit(dir, initParams{Yes: true}, nil, nil); err != nil {
+		t.Fatalf("execInit: %v", err)
 	}
 
-	if _, err := os.Stat(filepath.Join(dir, ".instinct-db", "data")); os.IsNotExist(err) {
-		t.Error(".instinct-db/data/ was not created")
+	err := dispatch([]string{"connect", "--refs", "refs/dolt/myproject"}, dir, nil, io.Discard)
+	if err == nil || !strings.Contains(err.Error(), "git remote") {
+		t.Errorf("expected git remote error, got: %v", err)
 	}
 }
 

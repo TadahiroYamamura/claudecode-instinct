@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -55,6 +56,19 @@ func execInit(projectDir string, params initParams, in io.Reader, out io.Writer)
 		return err
 	}
 	defer cleanup()
+
+	if _, err := conn.ExecContext(ctx, "CALL dolt_commit('-Am', 'init: create schema')"); err != nil {
+		return fmt.Errorf("initial commit: %w", err)
+	}
+
+	if teamBranch != defaultTeamBranch {
+		if _, err := conn.ExecContext(ctx, "CALL dolt_checkout('-b', ?)", teamBranch); err != nil {
+			return err
+		}
+		if _, err := conn.ExecContext(ctx, "CALL dolt_checkout(?)", defaultTeamBranch); err != nil {
+			return err
+		}
+	}
 
 	if _, err := conn.ExecContext(ctx, "CALL dolt_checkout('-b', ?)", branch); err != nil {
 		return err

@@ -1,12 +1,71 @@
 package main
 
 import (
+	"bytes"
+	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
+	"text/template"
 
 	"gopkg.in/yaml.v2"
 )
+
+//go:embed templates/gitignore.tmpl
+var instinctDbGitignore []byte
+
+//go:embed templates/config_team.tmpl
+var configTeamTemplate string
+
+//go:embed templates/config_user.tmpl
+var configUserTemplate string
+
+var configTeamTmpl = template.Must(template.New("config_team").Parse(configTeamTemplate))
+var configUserTmpl = template.Must(template.New("config_user").Parse(configUserTemplate))
+
+const defaultTeamBranch = "main"
+
+type teamConfigData struct {
+	Refs       string
+	TeamBranch string
+	RemoteURL  string
+}
+
+type userConfigData struct {
+	Branch string
+}
+
+func writeTeamConfig(dbDir, refs, teamBranch, remoteURL string) error {
+	var buf bytes.Buffer
+	if err := configTeamTmpl.Execute(&buf, teamConfigData{
+		Refs:       refs,
+		TeamBranch: teamBranch,
+		RemoteURL:  remoteURL,
+	}); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(dbDir, "config.team.yml"), buf.Bytes(), 0o644)
+}
+
+func sanitizeBranchName(name string) string {
+	var out []rune
+	for _, r := range name {
+		if r == ' ' || r == '/' || r == '\\' {
+			out = append(out, '-')
+		} else {
+			out = append(out, r)
+		}
+	}
+	return string(out)
+}
+
+func writeUserConfig(dbDir, branch string) error {
+	var buf bytes.Buffer
+	if err := configUserTmpl.Execute(&buf, userConfigData{Branch: branch}); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(dbDir, "config.user.yml"), buf.Bytes(), 0o644)
+}
 
 type DoltConfig struct {
 	Refs       string `yaml:"refs"`
