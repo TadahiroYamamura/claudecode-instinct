@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io"
 	"testing"
 
 	doltrepo "github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/dolt"
@@ -63,6 +64,52 @@ func TestRunInsert_StoresRecordFromFlags(t *testing.T) {
 	}
 	if obsCount != 3 {
 		t.Errorf("observation_count = %d", obsCount)
+	}
+}
+
+// insertはパーソナルブランチにレコードを追加し、チームブランチ(main)には追加しない
+func TestDispatch_Insert_AddsRecordOnPersonalBranchOnly(t *testing.T) {
+	dir := t.TempDir()
+	gitInitWithRemote(t, dir)
+	if err := execInit(dir, initParams{Branch: "alice", Yes: true}, nil, io.Discard, doltRepoFn); err != nil {
+		t.Fatalf("execInit: %v", err)
+	}
+
+	if err := dispatch([]string{"insert",
+		"--content", "テスト前に仕様を確認",
+		"--trigger", "実装前",
+		"--domain", "testing",
+		"--count", "1",
+	}, dir, nil, io.Discard); err != nil {
+		t.Fatalf("dispatch insert: %v", err)
+	}
+
+	conn, cleanup, err := openConn(t.Context(), instinctDataDir(dir))
+	if err != nil {
+		t.Fatalf("openConn: %v", err)
+	}
+	defer cleanup()
+
+	var aliceCount int
+	if _, err := conn.ExecContext(t.Context(), "CALL dolt_checkout('alice')"); err != nil {
+		t.Fatalf("checkout alice: %v", err)
+	}
+	if err := conn.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM instincts").Scan(&aliceCount); err != nil {
+		t.Fatalf("count on alice: %v", err)
+	}
+	if aliceCount != 1 {
+		t.Errorf("expected 1 record on alice branch, got %d", aliceCount)
+	}
+
+	var mainCount int
+	if _, err := conn.ExecContext(t.Context(), "CALL dolt_checkout('main')"); err != nil {
+		t.Fatalf("checkout main: %v", err)
+	}
+	if err := conn.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM instincts").Scan(&mainCount); err != nil {
+		t.Fatalf("count on main: %v", err)
+	}
+	if mainCount != 0 {
+		t.Errorf("expected 0 records on main branch, got %d", mainCount)
 	}
 }
 
