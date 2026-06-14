@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 )
 
 func execPull(ctx context.Context, repo Repository, cfg *InstinctConfig, localBranch string, w io.Writer) error {
@@ -26,7 +27,11 @@ func execPull(ctx context.Context, repo Repository, cfg *InstinctConfig, localBr
 
 	repo.Checkout(ctx, localBranch) //nolint:errcheck
 	if err := repo.Sync(ctx, "origin", localBranch); err != nil {
-		return fmt.Errorf("pull personal branch: %w", err)
+		if !strings.Contains(err.Error(), "not found on remote") {
+			return fmt.Errorf("pull personal branch: %w", err)
+		}
+		fmt.Fprintf(w, "pulled %s from %s (personal branch %s not on remote yet)\n", cfg.Dolt.TeamBranch, cfg.Dolt.RemoteURL, localBranch)
+		return nil
 	}
 
 	fmt.Fprintf(w, "pulled %s and %s from %s\n", cfg.Dolt.TeamBranch, localBranch, cfg.Dolt.RemoteURL)
