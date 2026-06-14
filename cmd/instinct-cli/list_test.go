@@ -26,6 +26,19 @@ func TestExecList_OutputsInstinctsFromRepository(t *testing.T) {
 	}
 }
 
+// instinctが0件のときexecListはヘッダー行のみ出力する
+func TestExecList_EmptyDB_ShowsOnlyHeader(t *testing.T) {
+	ctx, conn := setupTestDB(t)
+	var buf strings.Builder
+	if err := execList(ctx, doltRepoFn(conn), &buf); err != nil {
+		t.Fatalf("execList: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	if len(lines) != 1 {
+		t.Errorf("expected only header line for empty DB, got %d lines:\n%s", len(lines), buf.String())
+	}
+}
+
 // tabwriterによる整形後は生のタブ文字が出力に残らない
 func TestExecList_AlignsColumns(t *testing.T) {
 	ctx, conn := setupTestDB(t)

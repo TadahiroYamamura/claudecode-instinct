@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"io"
 	"os"
 	"path/filepath"
@@ -124,6 +125,80 @@ func TestDispatch_ConnectCommand_RoutesToExecConnect(t *testing.T) {
 	err := dispatch([]string{"connect", "--refs", "refs/dolt/myproject"}, dir, nil, io.Discard)
 	if err == nil || !strings.Contains(err.Error(), "git remote") {
 		t.Errorf("expected git remote error, got: %v", err)
+	}
+}
+
+// dispatch("insert") → dispatch("list") でレコードが表示される
+func TestDispatch_InsertThenList_RecordAppears(t *testing.T) {
+	dir := t.TempDir()
+	gitInitWithRemote(t, dir)
+	if err := execInit(dir, initParams{Yes: true}, nil, nil, doltRepoFn); err != nil {
+		t.Fatalf("execInit: %v", err)
+	}
+
+	if err := dispatch([]string{"insert",
+		"--content", "TDDでテストを先に書く",
+		"--trigger", "実装開始時",
+		"--domain", "testing",
+		"--count", "5",
+	}, dir, nil, io.Discard); err != nil {
+		t.Fatalf("dispatch insert: %v", err)
+	}
+
+	var buf strings.Builder
+	if err := dispatch([]string{"list"}, dir, nil, &buf); err != nil {
+		t.Fatalf("dispatch list: %v", err)
+	}
+	if !strings.Contains(buf.String(), "TDDでテストを先に書く") {
+		t.Errorf("expected inserted content in list output, got:\n%s", buf.String())
+	}
+}
+
+// dispatch("insert") → dispatch("commit") でパーソナルブランチのコミット数が増える
+func TestDispatch_CommitCommand_IncreasesCommitCount(t *testing.T) {
+	dir := t.TempDir()
+	gitInitWithRemote(t, dir)
+	if err := execInit(dir, initParams{Yes: true}, nil, nil, doltRepoFn); err != nil {
+		t.Fatalf("execInit: %v", err)
+	}
+
+	if err := dispatch([]string{"insert",
+		"--content", "コミット前に全テストを通す",
+		"--trigger", "コミット時",
+		"--domain", "git",
+		"--count", "3",
+	}, dir, nil, io.Discard); err != nil {
+		t.Fatalf("dispatch insert: %v", err)
+	}
+
+	// パーソナルブランチでの件数を確認（openProjectConnが checkout する）
+	countOnPersonalBranch := func() int {
+		t.Helper()
+		var capturedConn *sql.Conn
+		_, _, cleanup, err := openProjectConn(dir, func(conn *sql.Conn) Repository {
+			capturedConn = conn
+			return doltRepoFn(conn)
+		})
+		if err != nil {
+			t.Fatalf("openProjectConn: %v", err)
+		}
+		defer cleanup()
+		var n int
+		if err := capturedConn.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM dolt_log").Scan(&n); err != nil {
+			t.Fatalf("dolt_log: %v", err)
+		}
+		return n
+	}
+
+	before := countOnPersonalBranch()
+
+	if err := dispatch([]string{"commit", "-m", "test batch"}, dir, nil, io.Discard); err != nil {
+		t.Fatalf("dispatch commit: %v", err)
+	}
+
+	after := countOnPersonalBranch()
+	if after != before+1 {
+		t.Errorf("expected commit count +1, before=%d after=%d", before, after)
 	}
 }
 

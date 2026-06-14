@@ -22,6 +22,23 @@ func TestExecCommit_NothingToCommit_SucceedsSilently(t *testing.T) {
 	}
 }
 
+// execCommitはカスタムメッセージをdolt_logに記録する
+func TestExecCommit_StoresCustomMessage(t *testing.T) {
+	ctx, conn := setupTestDB(t)
+
+	if err := execCommit(ctx, doltRepoFn(conn), "my custom message"); err != nil {
+		t.Fatalf("execCommit: %v", err)
+	}
+
+	var msg string
+	if err := conn.QueryRowContext(ctx, "SELECT message FROM dolt_log ORDER BY date DESC LIMIT 1").Scan(&msg); err != nil {
+		t.Fatalf("query dolt_log: %v", err)
+	}
+	if msg != "my custom message" {
+		t.Errorf("expected message 'my custom message', got %q", msg)
+	}
+}
+
 // execCommitはRepositoryを通じてworking setをdoltコミットとして記録する
 func TestExecCommit_CreatesDoltCommitViaRepository(t *testing.T) {
 	ctx, conn := setupTestDB(t)

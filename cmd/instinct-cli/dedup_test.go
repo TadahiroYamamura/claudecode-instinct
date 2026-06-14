@@ -123,6 +123,39 @@ func TestExecDedup_AllModelScoresAreRecorded(t *testing.T) {
 	}
 }
 
+// execDedupはdistinctと判定されたペアはマージせず両方残す
+func TestExecDedup_DistinctDecisionKeepsBothRecords(t *testing.T) {
+	ctx, conn := setupTestDB(t)
+	insertLintInstincts(t, ctx, conn)
+
+	judge := func(_ context.Context, _, _ InstinctRow) (DedupDecision, error) {
+		return DedupDecision{Decision: decisionDistinct, Reasoning: "異なる知見"}, nil
+	}
+
+	var buf strings.Builder
+	if err := execDedup(ctx, doltrepo.NewRepository(conn), judge, 0.0, &buf); err != nil {
+		t.Fatalf("execDedup: %v", err)
+	}
+
+	var count int
+	if err := conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM instincts").Scan(&count); err != nil {
+		t.Fatalf("count instincts: %v", err)
+	}
+	if count != 2 {
+		t.Errorf("expected 2 instincts after distinct decision, got %d", count)
+	}
+
+	var decisionCount int
+	if err := conn.QueryRowContext(ctx,
+		"SELECT COUNT(*) FROM dedup_decisions WHERE decision = ?", decisionDistinct,
+	).Scan(&decisionCount); err != nil {
+		t.Fatalf("query dedup_decisions: %v", err)
+	}
+	if decisionCount != 1 {
+		t.Errorf("expected 1 distinct record in dedup_decisions, got %d", decisionCount)
+	}
+}
+
 // execDedupはduplicateと判定されたペアをdedup_decisionsに記録する
 func TestExecDedup_DuplicateDecisionIsRecorded(t *testing.T) {
 	ctx, conn := setupTestDB(t)

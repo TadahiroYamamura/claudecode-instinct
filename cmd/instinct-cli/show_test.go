@@ -38,6 +38,16 @@ func TestExecShow_OutputsInstinctFromRepository(t *testing.T) {
 	}
 }
 
+// 存在しないIDを指定したときexecShowはエラーを返す
+func TestExecShow_ReturnsErrorForUnknownID(t *testing.T) {
+	ctx, conn := setupTestDB(t)
+	var buf strings.Builder
+	err := execShow(ctx, doltRepoFn(conn), "nonexistent", &buf)
+	if err == nil {
+		t.Error("expected error for unknown ID")
+	}
+}
+
 // show <id> はMarkdown風セクション形式で全フィールドを出力する
 func TestCLI_ShowCommand_MarkdownFormat(t *testing.T) {
 	ctx, conn := setupTestDB(t)
