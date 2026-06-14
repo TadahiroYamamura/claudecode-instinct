@@ -73,13 +73,17 @@ func SetupDB(ctx context.Context, dataDir, commitName, commitEmail string) error
 }
 
 // Clone clones a Dolt repository from remoteURL into dataDir.
+// 宛先を 'instincts' と明示することで dataDir/instincts/ にクローンされ、
+// その後 OpenConn が USE instincts で見つけられる。
 func Clone(ctx context.Context, dataDir, refs, branch, remoteURL, commitName, commitEmail string) error {
 	if err := os.MkdirAll(dataDir, 0o755); err != nil {
 		return fmt.Errorf("mkdir: %w", err)
 	}
-	db, err := OpenDB(dataDir, commitName, commitEmail)
+	// database= を指定せずサーバールートで接続し、dolt_clone に宛先 DB 名を渡す
+	rawDSN := "file://" + dataDir + "?commitname=" + commitName + "&commitemail=" + commitEmail
+	db, err := sql.Open("dolt", rawDSN)
 	if err != nil {
-		return err
+		return fmt.Errorf("open dolt: %w", err)
 	}
 	defer db.Close()
 	conn, err := db.Conn(ctx)
@@ -87,6 +91,6 @@ func Clone(ctx context.Context, dataDir, refs, branch, remoteURL, commitName, co
 		return fmt.Errorf("get conn: %w", err)
 	}
 	defer conn.Close()
-	_, err = conn.ExecContext(ctx, "CALL dolt_clone('--ref', ?, '--branch', ?, ?, '.')", refs, branch, remoteURL)
+	_, err = conn.ExecContext(ctx, "CALL dolt_clone('--ref', ?, '--branch', ?, ?, ?)", refs, branch, remoteURL, dbName)
 	return err
 }

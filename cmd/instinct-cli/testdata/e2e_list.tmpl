@@ -1,0 +1,4 @@
+ID        CONTENT           TRIGGER      DOMAIN       OBS  SCOPE
+{{.TDD}}  TDDでテストを先に書く      実装開始時        development  1    project
+{{.Commit}}  コミット前に全テストを通す     git commit時  git          1    project
+{{.Review}}  コードレビュー前にlintを通す  PR作成時        quality      1    project
