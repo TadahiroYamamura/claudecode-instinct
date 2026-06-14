@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -92,8 +93,8 @@ func TestDispatch_NoArgs_ReturnsUsageErrorNotProjectDirError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for no args")
 	}
-	if strings.Contains(err.Error(), ".instinct-db") {
-		t.Errorf("should not search for .instinct-db when no subcommand given, got: %v", err)
+	if !regexp.MustCompile(`^expected one of`).MatchString(err.Error()) {
+		t.Errorf("expected usage parse error, got: %v", err)
 	}
 }
 
@@ -123,8 +124,9 @@ func TestDispatch_ConnectCommand_RoutesToExecConnect(t *testing.T) {
 	}
 
 	err := dispatch([]string{"connect", "--refs", "refs/dolt/myproject"}, dir, nil, io.Discard)
-	if err == nil || !strings.Contains(err.Error(), "git remote") {
-		t.Errorf("expected git remote error, got: %v", err)
+	want := "remote URL is not set: run 'git remote add origin <url>' to configure a remote"
+	if err == nil || err.Error() != want {
+		t.Errorf("expected %q, got: %v", want, err)
 	}
 }
 
