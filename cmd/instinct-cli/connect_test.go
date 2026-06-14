@@ -54,8 +54,9 @@ func TestConnect_UsesInteractiveInputForRemoteURL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("loadConfig: %v", err)
 	}
-	if cfg.Dolt.RemoteURL != "git@github.com:test/repo.git" {
-		t.Errorf("remote_url: got %q, want git@github.com:test/repo.git", cfg.Dolt.RemoteURL)
+	const want = "git+ssh://git@github.com/test/repo.git"
+	if cfg.Dolt.RemoteURL != want {
+		t.Errorf("remote_url: got %q, want %q", cfg.Dolt.RemoteURL, want)
 	}
 }
 
@@ -333,5 +334,88 @@ func TestConnect_ErrorWhenTeamConfigAbsent(t *testing.T) {
 	}, nil, io.Discard, fakeCloneFail, fakeRepoFn)
 	if err == nil {
 		t.Error("expected error when config.team.yml is absent")
+	}
+}
+
+// SCP形式(git@github.com:ORG/REPO.git)はgit+ssh形式に変換してEnsureRemoteに渡す
+func TestConnect_ConvertsSCPRemoteURLToGitSSH_BeforeEnsureRemote(t *testing.T) {
+	dir := t.TempDir()
+	mustRun(t, "git", "-C", dir, "init")
+	if err := execInit(dir, initParams{Yes: true}, nil, nil, doltRepoFn); err != nil {
+		t.Fatalf("execInit: %v", err)
+	}
+
+	var gotURL string
+	repoFn := func(_ *sql.Conn) Repository {
+		return &stubRepository{
+			ensureRemote: func(_ context.Context, _, u string) { gotURL = u },
+		}
+	}
+	if err := execConnect(dir, connectParams{
+		RemoteURL: "git@github.com:ORG/REPO.git",
+		Refs:      "refs/dolt/myproject",
+		Yes:       true,
+	}, nil, io.Discard, fakeCloneFail, repoFn); err != nil {
+		t.Fatalf("execConnect: %v", err)
+	}
+
+	const want = "git+ssh://git@github.com/ORG/REPO.git"
+	if gotURL != want {
+		t.Errorf("EnsureRemote URL: got %q, want %q", gotURL, want)
+	}
+}
+
+// SCP形式はconfig.team.ymlにもgit+ssh形式で保存する
+func TestConnect_ConvertsSCPRemoteURLToGitSSH_InConfig(t *testing.T) {
+	dir := t.TempDir()
+	mustRun(t, "git", "-C", dir, "init")
+	if err := execInit(dir, initParams{Yes: true}, nil, nil, doltRepoFn); err != nil {
+		t.Fatalf("execInit: %v", err)
+	}
+
+	if err := execConnect(dir, connectParams{
+		RemoteURL: "git@github.com:ORG/REPO.git",
+		Refs:      "refs/dolt/myproject",
+		Yes:       true,
+	}, nil, io.Discard, fakeCloneFail, fakeRepoFn); err != nil {
+		t.Fatalf("execConnect: %v", err)
+	}
+
+	cfg, err := loadConfig(instinctDbDir(dir))
+	if err != nil {
+		t.Fatalf("loadConfig: %v", err)
+	}
+	const want = "git+ssh://git@github.com/ORG/REPO.git"
+	if cfg.Dolt.RemoteURL != want {
+		t.Errorf("config remote_url: got %q, want %q", cfg.Dolt.RemoteURL, want)
+	}
+}
+
+// git+ssh形式はそのまま通過する
+func TestConvertRemoteURL_GitSSHPassthrough(t *testing.T) {
+	url := "git+ssh://git@github.com/ORG/REPO.git"
+	if got := convertRemoteURL(url); got != url {
+		t.Errorf("got %q, want %q", got, url)
+	}
+}
+
+// HTTPS形式はそのまま通過する
+func TestConvertRemoteURL_HTTPSPassthrough(t *testing.T) {
+	url := "https://github.com/ORG/REPO.git"
+	if got := convertRemoteURL(url); got != url {
+		t.Errorf("got %q, want %q", got, url)
+	}
+}
+
+// SCP形式をgit+ssh形式に変換する
+func TestConvertRemoteURL_SCPToGitSSH(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"git@github.com:ORG/REPO.git", "git+ssh://git@github.com/ORG/REPO.git"},
+		{"git@gitlab.com:team/project.git", "git+ssh://git@gitlab.com/team/project.git"},
+	}
+	for _, c := range cases {
+		if got := convertRemoteURL(c.in); got != c.want {
+			t.Errorf("convertRemoteURL(%q) = %q, want %q", c.in, got, c.want)
+		}
 	}
 }

@@ -8,9 +8,20 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	doltrepo "github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/dolt"
 )
+
+// convertRemoteURL converts SCP-style git URLs (git@host:path) to git+ssh format
+// (git+ssh://git@host/path) which Dolt requires for SSH remotes.
+func convertRemoteURL(url string) string {
+	if strings.HasPrefix(url, "git@") && !strings.Contains(url, "://") {
+		url = strings.Replace(url, ":", "/", 1)
+		return "git+ssh://" + url
+	}
+	return url
+}
 
 type doltCloneFunc func(ctx context.Context, dataDir, refs, branch, remoteURL string) error
 
@@ -104,6 +115,7 @@ func execConnect(projectDir string, params connectParams, in io.Reader, out io.W
 	if remoteURL == "" {
 		return fmt.Errorf("remote URL is not set: run 'git remote add origin <url>' to configure a remote")
 	}
+	remoteURL = convertRemoteURL(remoteURL)
 
 	defaultRefs := "refs/dolt/" + filepath.Base(projectDir)
 	refs, err := resolve(params.Refs, defaultRefs, "Refs")
