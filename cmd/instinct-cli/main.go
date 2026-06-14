@@ -68,21 +68,21 @@ type commitCmd struct {
 }
 
 type dedupCmd struct{}
-type reviewCmd struct{}
+type nominateCmd struct{}
 type pushCmd struct{}
 type pullCmd struct{}
 
 type cliStruct struct {
-	Init    initCmd    `cmd:"" help:"Initialize .instinct-db locally (no remote required)"`
-	Connect connectCmd `cmd:"" help:"Connect .instinct-db to a remote (push or clone)"`
-	Insert insertFlags `cmd:"" help:"Insert an instinct"`
-	List   listCmd     `cmd:"" help:"List instincts"`
-	Show   showCmd     `cmd:"" help:"Show full details of an instinct"`
-	Commit commitCmd   `cmd:"" help:"Commit working set to Dolt history"`
-	Dedup  dedupCmd    `cmd:"" help:"Detect and merge duplicate instincts using Haiku"`
-	Review reviewCmd   `cmd:"" help:"List instincts pending review (not yet on team branch)"`
-	Push   pushCmd     `cmd:"" help:"Push personal branch to remote repository"`
-	Pull   pullCmd     `cmd:"" help:"Pull team branch from remote repository"`
+	Init     initCmd     `cmd:"" help:"Initialize .instinct-db locally (no remote required)"`
+	Connect  connectCmd  `cmd:"" help:"Connect .instinct-db to a remote (push or clone)"`
+	Insert   insertFlags `cmd:"" help:"Insert an instinct"`
+	List     listCmd     `cmd:"" help:"List instincts"`
+	Show     showCmd     `cmd:"" help:"Show full details of an instinct"`
+	Commit   commitCmd   `cmd:"" help:"Commit working set to Dolt history"`
+	Dedup    dedupCmd    `cmd:"" help:"Detect and merge duplicate instincts using Haiku"`
+	Nominate nominateCmd `cmd:"" help:"Nominate instincts for team review (submit to review_queue)"`
+	Push     pushCmd     `cmd:"" help:"Push personal branch to remote repository"`
+	Pull     pullCmd     `cmd:"" help:"Pull team branch from remote repository"`
 }
 
 func instinctDbDir(projectDir string) string {
@@ -177,7 +177,7 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 		defer cleanup()
 		cfg, _ := loadConfig(instinctDbDir(projectDir))
 		return execDedup(ctx, repo, haikuJudge, similarityThresholdFromConfig(cfg), out)
-	case "review":
+	case "nominate":
 		repo, projectDir, cleanup, err := openProjectConn(cwd, defaultRepoFn)
 		if err != nil {
 			return err
@@ -192,7 +192,7 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 			return err
 		}
 		submittedBy, _ := gitConfigValue("user.name")
-		return execReview(ctx, repo, cfg, userCfg.Dolt.Branch, submittedBy, ttyReviewSelector, out)
+		return execNominate(ctx, repo, cfg, userCfg.Dolt.Branch, submittedBy, ttyNominateSelector, out)
 	case "push":
 		repo, projectDir, cleanup, err := openProjectConn(cwd, defaultRepoFn)
 		if err != nil {

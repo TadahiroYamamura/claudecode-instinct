@@ -9,7 +9,7 @@ import (
 )
 
 // fakeSelector は指定したIDだけを返す（TUIの代替）
-func fakeSelector(ids []string) reviewSelector {
+func fakeSelector(ids []string) nominateSelector {
 	return func(_ []InstinctRow, _ io.Writer) ([]string, error) {
 		return ids, nil
 	}
@@ -96,8 +96,8 @@ func TestSubmitToReviewQueue_IdempotentOnDuplicate(t *testing.T) {
 	}
 }
 
-// execReview はセレクターで選んだinstinctをreview_queueに登録する
-func TestExecReview_SubmitsSelectedInstincts(t *testing.T) {
+// execNominate はセレクターで選んだinstinctをreview_queueに登録する
+func TestExecNominate_SubmitsSelectedInstincts(t *testing.T) {
 	ctx, conn := setupTestDB(t)
 
 	id, _ := insertInstinct(ctx, conn, InsertParams{
@@ -116,8 +116,8 @@ func TestExecReview_SubmitsSelectedInstincts(t *testing.T) {
 	cfg := &InstinctConfig{Confidence: ConfidenceConfig{ReviewMin: 6}}
 	var buf strings.Builder
 	// selectAllSelector で全件を選択
-	if err := execReview(ctx, doltrepo.NewRepository(conn), cfg, "personal", "Test User", selectAllSelector, &buf); err != nil {
-		t.Fatalf("execReview: %v", err)
+	if err := execNominate(ctx, doltrepo.NewRepository(conn), cfg, "personal", "Test User", selectAllSelector, &buf); err != nil {
+		t.Fatalf("execNominate: %v", err)
 	}
 
 	// チームブランチに review_queue レコードがあることを確認
@@ -125,13 +125,13 @@ func TestExecReview_SubmitsSelectedInstincts(t *testing.T) {
 	var count int
 	conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM review_queue").Scan(&count)
 	if count == 0 {
-		t.Error("expected records in review_queue after execReview")
+		t.Error("expected records in review_queue after execNominate")
 	}
 	_ = id
 }
 
-// execReview はセレクターが空を返した場合はreview_queueに何も挿入しない
-func TestExecReview_NoSubmitWhenNoneSelected(t *testing.T) {
+// execNominate はセレクターが空を返した場合はreview_queueに何も挿入しない
+func TestExecNominate_NoSubmitWhenNoneSelected(t *testing.T) {
 	ctx, conn := setupTestDB(t)
 
 	conn.ExecContext(ctx, `CALL dolt_commit('-Am', 'test: init')`)
@@ -144,8 +144,8 @@ func TestExecReview_NoSubmitWhenNoneSelected(t *testing.T) {
 	cfg := &InstinctConfig{Confidence: ConfidenceConfig{ReviewMin: 6}}
 	emptySelector := func(_ []InstinctRow, _ io.Writer) ([]string, error) { return nil, nil }
 
-	if err := execReview(ctx, doltrepo.NewRepository(conn), cfg, "personal", "Test User", emptySelector, io.Discard); err != nil {
-		t.Fatalf("execReview: %v", err)
+	if err := execNominate(ctx, doltrepo.NewRepository(conn), cfg, "personal", "Test User", emptySelector, io.Discard); err != nil {
+		t.Fatalf("execNominate: %v", err)
 	}
 
 	conn.ExecContext(ctx, `CALL dolt_checkout('main')`)

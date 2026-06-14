@@ -9,10 +9,10 @@ import (
 	"golang.org/x/term"
 )
 
-type reviewSelector func(rows []InstinctRow, out io.Writer) ([]string, error)
+type nominateSelector func(rows []InstinctRow, out io.Writer) ([]string, error)
 
-func execReview(ctx context.Context, repo Repository, cfg *InstinctConfig,
-	personalBranch, submittedBy string, selector reviewSelector, out io.Writer) error {
+func execNominate(ctx context.Context, repo Repository, cfg *InstinctConfig,
+	personalBranch, submittedBy string, selector nominateSelector, out io.Writer) error {
 
 	teamBranch := cfg.Dolt.TeamBranch
 	if teamBranch == "" {
@@ -28,7 +28,7 @@ func execReview(ctx context.Context, repo Repository, cfg *InstinctConfig,
 		return err
 	}
 	if len(rows) == 0 {
-		fmt.Fprintf(out, "0 instinct(s) pending review (not yet on %s)\n", teamBranch)
+		fmt.Fprintf(out, "0 instinct(s) eligible for nomination (all already on %s)\n", teamBranch)
 		return nil
 	}
 
@@ -54,11 +54,11 @@ func execReview(ctx context.Context, repo Repository, cfg *InstinctConfig,
 	if err := repo.SubmitToReviewQueue(ctx, teamBranch, selected, personalBranch, submittedBy); err != nil {
 		return err
 	}
-	fmt.Fprintf(out, "submitted %d instinct(s) to review_queue on %s\n", len(selected), teamBranch)
+	fmt.Fprintf(out, "nominated %d instinct(s) to review_queue on %s\n", len(selected), teamBranch)
 	return nil
 }
 
-func ttyReviewSelector(rows []InstinctRow, out io.Writer) ([]string, error) {
+func ttyNominateSelector(rows []InstinctRow, out io.Writer) ([]string, error) {
 	fd := int(os.Stdin.Fd())
 	if !term.IsTerminal(fd) {
 		return nil, nil
@@ -73,7 +73,7 @@ func ttyReviewSelector(rows []InstinctRow, out io.Writer) ([]string, error) {
 	cursor := 0
 	selected := make([]bool, len(rows))
 
-	printReviewTUI(out, rows, cursor, selected, false)
+	printNominateTUI(out, rows, cursor, selected, false)
 
 	buf := make([]byte, 3)
 	for {
@@ -107,16 +107,16 @@ func ttyReviewSelector(rows []InstinctRow, out io.Writer) ([]string, error) {
 			}
 		}
 
-		printReviewTUI(out, rows, cursor, selected, true)
+		printNominateTUI(out, rows, cursor, selected, true)
 	}
 }
 
-func printReviewTUI(w io.Writer, rows []InstinctRow, cursor int, selected []bool, redraw bool) {
+func printNominateTUI(w io.Writer, rows []InstinctRow, cursor int, selected []bool, redraw bool) {
 	const headerLines = 1
 	if redraw {
 		fmt.Fprintf(w, "\033[%dA\033[J", headerLines+len(rows))
 	}
-	fmt.Fprintf(w, "Review candidates (↑↓: navigate  space: toggle  enter: submit  q: quit)\r\n")
+	fmt.Fprintf(w, "Nominate candidates (↑↓: navigate  space: toggle  enter: submit  q: quit)\r\n")
 	for i, r := range rows {
 		check := "[ ]"
 		if selected[i] {

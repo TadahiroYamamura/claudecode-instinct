@@ -287,7 +287,7 @@ func TestE2E_ReviewFlow(t *testing.T) {
 	}
 
 	var reviewBuf strings.Builder
-	if err := execReview(ctx, repo, cfg, "alice", "alice-user", selectAllSelector, &reviewBuf); err != nil {
+	if err := execNominate(ctx, repo, cfg, "alice", "alice-user", selectAllSelector, &reviewBuf); err != nil {
 		t.Fatalf("review: %v", err)
 	}
 	t.Log(reviewBuf.String())
