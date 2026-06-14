@@ -1,99 +1,75 @@
 package main
 
 import (
+	"context"
+	"strings"
 	"testing"
+
+	doltrepo "github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/dolt"
 )
 
-func TestListInstincts_ReturnsInsertedRecord(t *testing.T) {
-	ctx, conn := setupTestDB(t)
-
-	if _, err := insertInstinct(ctx, conn, InsertParams{
-		Content:          "テスト前に仕様を確認する",
-		TriggerDesc:      "テスト実行時",
-		Domain:           "testing",
-		Scope:            "project",
-		ObservationCount: 5,
-		ProjectID:        "abc123def456",
-	}); err != nil {
-		t.Fatalf("insertInstinct: %v", err)
+// execListはRepositoryからinstinctを取得して出力する
+func TestExecList_OutputsInstinctsFromRepository(t *testing.T) {
+	repo := &stubRepository{
+		listInstincts: func(_ context.Context) ([]InstinctRow, error) {
+			return []InstinctRow{
+				{ID: "aaaa0000-0000-0000-0000-000000000000", Content: "テスト前に仕様を確認", TriggerDesc: "テスト時", Domain: "testing", ObservationCount: 3, Scope: "project"},
+			}, nil
+		},
 	}
-
-	rows, err := listInstincts(ctx, conn)
-	if err != nil {
-		t.Fatalf("listInstincts: %v", err)
+	var buf strings.Builder
+	if err := execList(context.Background(), repo, &buf); err != nil {
+		t.Fatalf("execList: %v", err)
 	}
-	if len(rows) != 1 {
-		t.Fatalf("expected 1 row, got %d", len(rows))
-	}
-	if rows[0].Content != "テスト前に仕様を確認する" {
-		t.Errorf("content = %q", rows[0].Content)
+	if !strings.Contains(buf.String(), "テスト前に仕様を確認") {
+		t.Errorf("expected content in output, got: %s", buf.String())
 	}
 }
 
-func TestListInstincts_OrderedNewestFirst(t *testing.T) {
+// tabwriterによる整形後は生のタブ文字が出力に残らない
+func TestExecList_AlignsColumns(t *testing.T) {
 	ctx, conn := setupTestDB(t)
 
-	for _, row := range []struct {
-		id        string
-		content   string
-		createdAt string
-	}{
-		{"id-old", "古い知見", "2026-01-01 00:00:00"},
-		{"id-new", "新しい知見", "2026-06-01 00:00:00"},
-	} {
-		_, err := conn.ExecContext(ctx,
-			`INSERT INTO instincts (id, content, trigger_desc, domain, scope, observation_count, project_id, created_at)
-			 VALUES (?, ?, '', '', 'project', 1, 'abc123def456', ?)`,
-			row.id, row.content, row.createdAt)
-		if err != nil {
-			t.Fatalf("insert %s: %v", row.id, err)
+	for _, content := range []string{"short", "this is much longer content"} {
+		if _, err := insertInstinct(ctx, conn, InsertParams{
+			Content: content, TriggerDesc: "trigger", Domain: "test",
+			Scope: "project", ObservationCount: 1, ProjectID: "abc123def456",
+		}); err != nil {
+			t.Fatalf("insertInstinct: %v", err)
 		}
 	}
 
-	rows, err := listInstincts(ctx, conn)
-	if err != nil {
-		t.Fatalf("listInstincts: %v", err)
+	var buf strings.Builder
+	if err := execList(ctx, doltrepo.NewRepository(conn), &buf); err != nil {
+		t.Fatalf("execList: %v", err)
 	}
-	if len(rows) != 2 {
-		t.Fatalf("expected 2 rows, got %d", len(rows))
-	}
-	if rows[0].Content != "新しい知見" {
-		t.Errorf("expected newest first, got %q", rows[0].Content)
+	if strings.Contains(buf.String(), "\t") {
+		t.Errorf("expected tabwriter to replace tabs with spaces, got:\n%s", buf.String())
 	}
 }
 
-func TestListInstincts_ReturnsAllFields(t *testing.T) {
+// 41文字超のcontentは40文字で打ち切られ "..." が付く
+func TestExecList_TruncatesLongContent(t *testing.T) {
 	ctx, conn := setupTestDB(t)
 
+	longContent := strings.Repeat("あ", 41)
+
 	if _, err := insertInstinct(ctx, conn, InsertParams{
-		Content:          "コミット前にlintを実行する",
-		TriggerDesc:      "git commit時",
-		Domain:           "git",
-		Scope:            "global",
-		ObservationCount: 7,
-		ProjectID:        "abc123def456",
+		Content: longContent, TriggerDesc: "trigger", Domain: "test",
+		Scope: "project", ObservationCount: 1, ProjectID: "abc123def456",
 	}); err != nil {
 		t.Fatalf("insertInstinct: %v", err)
 	}
 
-	rows, err := listInstincts(ctx, conn)
-	if err != nil {
-		t.Fatalf("listInstincts: %v", err)
+	var buf strings.Builder
+	if err := execList(ctx, doltrepo.NewRepository(conn), &buf); err != nil {
+		t.Fatalf("execList: %v", err)
 	}
-	r := rows[0]
-	if r.TriggerDesc != "git commit時" {
-		t.Errorf("trigger_desc = %q", r.TriggerDesc)
+	if strings.Contains(buf.String(), longContent) {
+		t.Error("expected content to be truncated, but full content appeared")
 	}
-	if r.Domain != "git" {
-		t.Errorf("domain = %q", r.Domain)
-	}
-	if r.ObservationCount != 7 {
-		t.Errorf("observation_count = %d", r.ObservationCount)
-	}
-	if r.Scope != "global" {
-		t.Errorf("scope = %q", r.Scope)
-	}
-	if r.CreatedAt.IsZero() {
-		t.Error("created_at is zero")
+	if !strings.Contains(buf.String(), "...") {
+		t.Error("expected truncation marker '...'")
 	}
 }
+
