@@ -133,6 +133,11 @@ func (r *Repository) MergeAndDelete(ctx context.Context, winner, loser instincts
 	return err
 }
 
+func (r *Repository) Commit(ctx context.Context, message string) error {
+	_, err := r.conn.ExecContext(ctx, "CALL dolt_commit('-Am', ?)", message)
+	return err
+}
+
 func (r *Repository) InsertInstinct(ctx context.Context, p instincts.InsertParams) (string, error) {
 	id := uuid.New().String()
 	_, err := r.conn.ExecContext(ctx,

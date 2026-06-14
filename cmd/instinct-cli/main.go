@@ -162,7 +162,7 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 			return err
 		}
 		defer cleanup()
-		return execCommit(context.Background(), conn, cli.Commit.Message)
+		return execCommit(context.Background(), doltrepo.NewRepository(conn), cli.Commit.Message)
 	case "dedup":
 		conn, projectDir, cleanup, err := openProjectConn(cwd)
 		if err != nil {

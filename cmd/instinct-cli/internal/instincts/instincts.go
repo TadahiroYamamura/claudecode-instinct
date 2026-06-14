@@ -43,4 +43,5 @@ type Repository interface {
 	ListReviewInstincts(ctx context.Context, teamBranch string, minObservations int) ([]InstinctRow, error)
 	InsertDedupDecision(ctx context.Context, a, b InstinctRow, d DedupDecision, scores SimilarityScores) error
 	MergeAndDelete(ctx context.Context, winner, loser InstinctRow) error
+	Commit(ctx context.Context, message string) error
 }
