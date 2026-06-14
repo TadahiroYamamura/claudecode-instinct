@@ -50,9 +50,12 @@ func writeTeamConfig(dbDir, refs, teamBranch, remoteURL string) error {
 func sanitizeBranchName(name string) string {
 	var out []rune
 	for _, r := range name {
-		if r == ' ' || r == '/' || r == '\\' {
-			out = append(out, '-')
-		} else {
+		switch {
+		case r == ' ':
+			out = append(out, '_')
+		case r >= 'A' && r <= 'Z':
+			out = append(out, r+('a'-'A'))
+		case (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '_':
 			out = append(out, r)
 		}
 	}

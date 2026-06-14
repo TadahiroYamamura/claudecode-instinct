@@ -57,6 +57,30 @@ func TestLoadUserConfig_ReturnsBranch(t *testing.T) {
 	}
 }
 
+func TestSanitizeBranchName(t *testing.T) {
+	cases := []struct {
+		input string
+		want  string
+	}{
+		{"alice", "alice"},
+		{"Alice", "alice"},
+		{"Tadahiro Yamamura", "tadahiro_yamamura"},
+		{"John O'Brien", "john_obrien"},
+		{"user@example.com", "userexamplecom"},
+		{"Bob123", "bob123"},
+		{"--dash--", "--dash--"},
+		{"my_user", "my_user"},
+		{"山田 太郎", "_"},
+	}
+	for _, c := range cases {
+		t.Run(c.input, func(t *testing.T) {
+			if got := sanitizeBranchName(c.input); got != c.want {
+				t.Errorf("sanitizeBranchName(%q) = %q, want %q", c.input, got, c.want)
+			}
+		})
+	}
+}
+
 // config.user.ymlが存在しない場合はエラーを返す
 func TestLoadUserConfig_ErrorWhenAbsent(t *testing.T) {
 	dir := t.TempDir()
