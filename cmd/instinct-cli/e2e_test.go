@@ -213,10 +213,10 @@ func sortDataRows(s string) string {
 	return strings.Join(append([]string{header}, dataLines...), "\n")
 }
 
-// TestE2E_ReviewFlow はreviewコマンドの全フローを検証する。
+// TestE2E_ReviewFlow はnominate→reviewの全フローを検証する。
 //
-//  1人目: init→connect→insert×3(count=6)→commit→review(全選択)→push(alice)→push(main)
-//  2人目: connect(clone)→pull→review候補件数確認
+//  1人目(alice): init→connect→insert×3(count=6)→commit→nominate→push(alice)→push(main)
+//  2人目(bob):   connect(clone)→pull→review(全選択)→push(main)
 //
 // 実行: INSTINCT_E2E=1 go test -tags e2e -v -run TestE2E_ReviewFlow . (cmd/instinct-cli/ から)
 func TestE2E_ReviewFlow(t *testing.T) {
@@ -239,6 +239,7 @@ func TestE2E_ReviewFlow(t *testing.T) {
 		}
 	})
 
+	// 1人目: alice (コントリビューター)
 	t.Log("=== init ===")
 	if err := dispatch([]string{"init", "--branch", "alice", "-y"}, dir, nil, os.Stdout); err != nil {
 		t.Fatalf("init: %v", err)
@@ -254,12 +255,12 @@ func TestE2E_ReviewFlow(t *testing.T) {
 	}
 
 	t.Log("=== insert x3 (count=6) ===")
-	reviewInstincts := []struct{ content, trigger, domain string }{
+	nominateInstincts := []struct{ content, trigger, domain string }{
 		{"TDDでテストを先に書く", "実装開始時", "development"},
 		{"コミット前に全テストを通す", "git commit時", "git"},
 		{"コードレビュー前にlintを通す", "PR作成時", "quality"},
 	}
-	for _, ins := range reviewInstincts {
+	for _, ins := range nominateInstincts {
 		if err := dispatch([]string{"insert",
 			"--content", ins.content, "--trigger", ins.trigger,
 			"--domain", ins.domain, "--count", "6",
@@ -269,12 +270,12 @@ func TestE2E_ReviewFlow(t *testing.T) {
 	}
 
 	t.Log("=== commit ===")
-	if err := dispatch([]string{"commit", "-m", "e2e review: 知見を追加"}, dir, nil, io.Discard); err != nil {
+	if err := dispatch([]string{"commit", "-m", "e2e: 知見を追加"}, dir, nil, io.Discard); err != nil {
 		t.Fatalf("commit: %v", err)
 	}
 
-	// review: TTYセレクターをバイパスして全件選択
-	t.Log("=== review ===")
+	// nominate: TTYセレクターをバイパスして全件選択
+	t.Log("=== nominate ===")
 	repo, projectDir, repoCleanup, err := openProjectConn(dir, defaultRepoFn)
 	if err != nil {
 		t.Fatalf("openProjectConn: %v", err)
@@ -286,12 +287,12 @@ func TestE2E_ReviewFlow(t *testing.T) {
 		t.Fatalf("loadConfig: %v", err)
 	}
 
-	var reviewBuf strings.Builder
-	if err := execNominate(ctx, repo, cfg, "alice", "alice-user", selectAllSelector, &reviewBuf); err != nil {
-		t.Fatalf("review: %v", err)
+	var nominateBuf strings.Builder
+	if err := execNominate(ctx, repo, cfg, "alice", "alice", selectAllSelector, &nominateBuf); err != nil {
+		t.Fatalf("nominate: %v", err)
 	}
-	t.Log(reviewBuf.String())
-	assertWithTemplate(t, reviewBuf.String(), "testdata/e2e_review.tmpl",
+	t.Log(nominateBuf.String())
+	assertWithTemplate(t, nominateBuf.String(), "testdata/e2e_nominate.tmpl",
 		struct {
 			Count      int
 			TeamBranch string
@@ -302,27 +303,19 @@ func TestE2E_ReviewFlow(t *testing.T) {
 	if err := execPush(ctx, repo, cfg, "alice", &pushAliceBuf); err != nil {
 		t.Fatalf("push alice: %v", err)
 	}
-	t.Log(pushAliceBuf.String())
 	assertWithTemplate(t, pushAliceBuf.String(), "testdata/e2e_push.tmpl",
-		struct{ Branch, RemoteURL string }{
-			Branch:    "alice",
-			RemoteURL: "git+ssh://git@github.com/TadahiroYamamura/claudecode-tdd.git",
-		}, nil)
+		struct{ Branch, RemoteURL string }{Branch: "alice", RemoteURL: "git+ssh://git@github.com/TadahiroYamamura/claudecode-tdd.git"}, nil)
 
 	// review_queue を含むチームブランチを push
-	t.Log("=== push main ===")
-	var pushMainBuf strings.Builder
-	if err := execPush(ctx, repo, cfg, "main", &pushMainBuf); err != nil {
+	t.Log("=== push main (review_queue) ===")
+	var pushMain1Buf strings.Builder
+	if err := execPush(ctx, repo, cfg, "main", &pushMain1Buf); err != nil {
 		t.Fatalf("push main: %v", err)
 	}
-	t.Log(pushMainBuf.String())
-	assertWithTemplate(t, pushMainBuf.String(), "testdata/e2e_push.tmpl",
-		struct{ Branch, RemoteURL string }{
-			Branch:    "main",
-			RemoteURL: "git+ssh://git@github.com/TadahiroYamamura/claudecode-tdd.git",
-		}, nil)
+	assertWithTemplate(t, pushMain1Buf.String(), "testdata/e2e_push.tmpl",
+		struct{ Branch, RemoteURL string }{Branch: "main", RemoteURL: "git+ssh://git@github.com/TadahiroYamamura/claudecode-tdd.git"}, nil)
 
-	// 2人目: config.team.yml を共有した状態で clone → pull
+	// 2人目: bob (チームレビュアー)
 	t.Log("=== 2nd user: connect (clone) ===")
 	dir2 := t.TempDir()
 	mustRun(t, "git", "-C", dir2, "init")
@@ -331,7 +324,7 @@ func TestE2E_ReviewFlow(t *testing.T) {
 		filepath.Join(dir, ".instinct-db", "config.team.yml"),
 		filepath.Join(dir2, ".instinct-db", "config.team.yml"),
 	)
-	if err := dispatch([]string{"connect", "--branch", "alice", "-y"}, dir2, nil, os.Stdout); err != nil {
+	if err := dispatch([]string{"connect", "--branch", "bob", "-y"}, dir2, nil, os.Stdout); err != nil {
 		t.Fatalf("2nd user connect: %v", err)
 	}
 
@@ -340,22 +333,47 @@ func TestE2E_ReviewFlow(t *testing.T) {
 		t.Fatalf("2nd user pull: %v", err)
 	}
 
-	// 2人目: review候補が正しく見えることを確認
-	t.Log("=== 2nd user: verify review candidates ===")
+	// review: review_queue から team ブランチへ昇格
+	t.Log("=== 2nd user: review ===")
 	repo2, projectDir2, repo2Cleanup, err := openProjectConn(dir2, defaultRepoFn)
 	if err != nil {
 		t.Fatalf("2nd user openProjectConn: %v", err)
 	}
 	defer repo2Cleanup()
 
-	pendingRows, err := repo2.ListReviewInstincts(ctx, defaultTeamBranch, defaultMediumThreshold)
+	cfg2, err := loadConfig(instinctDbDir(projectDir2))
 	if err != nil {
-		t.Fatalf("2nd user ListReviewInstincts: %v", err)
+		t.Fatalf("2nd user loadConfig: %v", err)
 	}
-	if len(pendingRows) != 3 {
-		t.Errorf("2nd user: expected 3 pending review instincts, got %d", len(pendingRows))
+
+	var reviewBuf strings.Builder
+	if err := execReview(ctx, repo2, cfg2, "bob", "bob", selectAllReviewQueueSelector, &reviewBuf); err != nil {
+		t.Fatalf("2nd user review: %v", err)
 	}
-	_ = projectDir2
+	t.Log(reviewBuf.String())
+	assertWithTemplate(t, reviewBuf.String(), "testdata/e2e_review.tmpl",
+		struct {
+			Count      int
+			TeamBranch string
+		}{Count: 3, TeamBranch: "main"}, nil)
+
+	// 昇格後の main を push
+	t.Log("=== 2nd user: push main (promoted) ===")
+	var pushMain2Buf strings.Builder
+	if err := execPush(ctx, repo2, cfg2, "main", &pushMain2Buf); err != nil {
+		t.Fatalf("2nd user push main: %v", err)
+	}
+	assertWithTemplate(t, pushMain2Buf.String(), "testdata/e2e_push.tmpl",
+		struct{ Branch, RemoteURL string }{Branch: "main", RemoteURL: "git+ssh://git@github.com/TadahiroYamamura/claudecode-tdd.git"}, nil)
+
+	// review_queue が空になっていることを確認
+	queueItems, err := repo2.ListReviewQueue(ctx, "main")
+	if err != nil {
+		t.Fatalf("2nd user ListReviewQueue: %v", err)
+	}
+	if len(queueItems) != 0 {
+		t.Errorf("2nd user: expected review_queue empty after promotion, got %d items", len(queueItems))
+	}
 }
 
 // assertWithTemplate はテンプレートに data を注入して expected を生成し、actual と比較する。
