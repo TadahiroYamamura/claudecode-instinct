@@ -6,6 +6,22 @@ import (
 	doltrepo "github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/dolt"
 )
 
+// working setが空のときcommitはエラーを返さず成功する（observer-loop.shが冪等に呼べる）
+func TestExecCommit_NothingToCommit_SucceedsSilently(t *testing.T) {
+	ctx, conn := setupTestDB(t)
+	repo := doltRepoFn(conn)
+
+	// DDLをコミットしてworking setをクリーンにする
+	if err := execCommit(ctx, repo, "init"); err != nil {
+		t.Fatalf("initial commit: %v", err)
+	}
+
+	// working setが空 → エラーにならない
+	if err := execCommit(ctx, repo, "should be no-op"); err != nil {
+		t.Errorf("expected no error when nothing to commit, got: %v", err)
+	}
+}
+
 // execCommitはRepositoryを通じてworking setをdoltコミットとして記録する
 func TestExecCommit_CreatesDoltCommitViaRepository(t *testing.T) {
 	ctx, conn := setupTestDB(t)

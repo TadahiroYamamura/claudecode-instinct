@@ -190,6 +190,9 @@ func (r *Repository) CreateBranch(ctx context.Context, branch string) error {
 
 func (r *Repository) Commit(ctx context.Context, message string) error {
 	_, err := r.conn.ExecContext(ctx, "CALL dolt_commit('-Am', ?)", message)
+	if err != nil && strings.Contains(err.Error(), "nothing to commit") {
+		return nil
+	}
 	return err
 }
 
