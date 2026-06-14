@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
-	"path/filepath"
 	"testing"
 
 	doltrepo "github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/dolt"
@@ -31,23 +29,6 @@ func TestExecInsert_StoresInstinctViaRepository(t *testing.T) {
 	if got.Content != "テスト前に仕様を確認する" {
 		t.Errorf("content: got %q, want %q", got.Content, "テスト前に仕様を確認する")
 	}
-}
-
-func setupTestDB(t *testing.T) (context.Context, *sql.Conn) {
-	t.Helper()
-	dir := t.TempDir()
-	dataDir := filepath.Join(dir, "data")
-	ctx := context.Background()
-
-	if err := setupDB(ctx, dataDir); err != nil {
-		t.Fatalf("setupDB: %v", err)
-	}
-	conn, cleanup, err := openConn(ctx, dataDir)
-	if err != nil {
-		t.Fatalf("openConn: %v", err)
-	}
-	t.Cleanup(cleanup)
-	return ctx, conn
 }
 
 // 同一内容を2回insertすると2レコードになる（dedup前）

@@ -5,10 +5,28 @@ import (
 	"database/sql"
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"testing"
 
 	doltrepo "github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/dolt"
 )
+
+func setupTestDB(t *testing.T) (context.Context, *sql.Conn) {
+	t.Helper()
+	dir := t.TempDir()
+	dataDir := filepath.Join(dir, "data")
+	ctx := context.Background()
+
+	if err := setupDB(ctx, dataDir); err != nil {
+		t.Fatalf("setupDB: %v", err)
+	}
+	conn, cleanup, err := openConn(ctx, dataDir)
+	if err != nil {
+		t.Fatalf("openConn: %v", err)
+	}
+	t.Cleanup(cleanup)
+	return ctx, conn
+}
 
 func insertInstinct(ctx context.Context, conn *sql.Conn, p InsertParams) (string, error) {
 	return doltrepo.NewRepository(conn).InsertInstinct(ctx, p)
