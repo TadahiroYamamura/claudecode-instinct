@@ -1,9 +1,30 @@
 package main
 
 import (
+	"context"
 	"strings"
 	"testing"
+
+	doltrepo "github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/dolt"
 )
+
+// execListMergedはRepositoryからinstinctを取得して出力する
+func TestExecListMerged_OutputsFromRepository(t *testing.T) {
+	repo := &stubRepository{
+		listMergedInstincts: func(_ context.Context, teamBranch string) ([]InstinctRow, error) {
+			return []InstinctRow{
+				{ID: "aa000000-0000-0000-0000-000000000000", Content: "チームの知見", TriggerDesc: "常時", Domain: "git", ObservationCount: 3, Scope: "global"},
+			}, nil
+		},
+	}
+	var buf strings.Builder
+	if err := execListMerged(context.Background(), repo, &InstinctConfig{}, &buf); err != nil {
+		t.Fatalf("execListMerged: %v", err)
+	}
+	if !strings.Contains(buf.String(), "チームの知見") {
+		t.Errorf("expected content in output, got: %s", buf.String())
+	}
+}
 
 // list --merged は main ブランチの instinct を含む
 func TestListMerged_IncludesMainBranchInstincts(t *testing.T) {
@@ -34,7 +55,7 @@ func TestListMerged_IncludesMainBranchInstincts(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	if err := execListMerged(ctx, conn, &InstinctConfig{}, &buf); err != nil {
+	if err := execListMerged(ctx, doltrepo.NewRepository(conn), &InstinctConfig{}, &buf); err != nil {
 		t.Fatalf("execListMerged: %v", err)
 	}
 	out := buf.String()
@@ -73,7 +94,7 @@ func TestListMerged_UsesConfiguredTeamBranch(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	if err := execListMerged(ctx, conn, &InstinctConfig{Dolt: DoltConfig{TeamBranch: "team"}}, &buf); err != nil {
+	if err := execListMerged(ctx, doltrepo.NewRepository(conn), &InstinctConfig{Dolt: DoltConfig{TeamBranch: "team"}}, &buf); err != nil {
 		t.Fatalf("execListMerged: %v", err)
 	}
 	if !strings.Contains(buf.String(), "team branch instinct") {
@@ -103,7 +124,7 @@ func TestListMerged_DeduplicatesByID(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	if err := execListMerged(ctx, conn, &InstinctConfig{}, &buf); err != nil {
+	if err := execListMerged(ctx, doltrepo.NewRepository(conn), &InstinctConfig{}, &buf); err != nil {
 		t.Fatalf("execListMerged: %v", err)
 	}
 

@@ -40,6 +40,33 @@ func (r *Repository) ListInstincts(ctx context.Context) ([]instincts.InstinctRow
 	return result, rows.Err()
 }
 
+func (r *Repository) ListMergedInstincts(ctx context.Context, teamBranch string) ([]instincts.InstinctRow, error) {
+	// AS OF はプレースホルダー非対応のため Sprintf で埋め込む。
+	// teamBranch は config.yml 由来（ユーザー入力ではない）。
+	query := fmt.Sprintf(`
+		SELECT id, content, trigger_desc, domain, observation_count, scope, created_at FROM instincts
+		UNION
+		SELECT id, content, trigger_desc, domain, observation_count, scope, created_at FROM instincts AS OF '%s'
+		ORDER BY created_at DESC`, teamBranch)
+	rows, err := r.conn.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("list merged instincts: %w", err)
+	}
+	defer rows.Close()
+
+	var result []instincts.InstinctRow
+	for rows.Next() {
+		var row instincts.InstinctRow
+		var createdAt time.Time
+		if err := rows.Scan(&row.ID, &row.Content, &row.TriggerDesc, &row.Domain, &row.ObservationCount, &row.Scope, &createdAt); err != nil {
+			return nil, fmt.Errorf("scan: %w", err)
+		}
+		row.CreatedAt = createdAt
+		result = append(result, row)
+	}
+	return result, rows.Err()
+}
+
 func (r *Repository) GetInstinct(ctx context.Context, shortID string) (*instincts.InstinctRow, error) {
 	var row instincts.InstinctRow
 	var createdAt time.Time

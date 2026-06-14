@@ -39,4 +39,5 @@ type Repository interface {
 	InsertInstinct(ctx context.Context, p InsertParams) (string, error)
 	ListInstincts(ctx context.Context) ([]InstinctRow, error)
 	GetInstinct(ctx context.Context, shortID string) (*InstinctRow, error)
+	ListMergedInstincts(ctx context.Context, teamBranch string) ([]InstinctRow, error)
 }

@@ -146,7 +146,7 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 			cfg = &InstinctConfig{}
 		}
 		if cli.List.Merged {
-			return execListMerged(context.Background(), conn, cfg, os.Stdout)
+			return execListMerged(context.Background(), doltrepo.NewRepository(conn), cfg, os.Stdout)
 		}
 		return execList(context.Background(), doltrepo.NewRepository(conn), os.Stdout)
 	case "show <id>":

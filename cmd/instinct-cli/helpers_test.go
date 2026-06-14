@@ -39,9 +39,10 @@ func fakeCloneFail(_ context.Context, _ string, _, _, _ string) error {
 func fakePush(_ context.Context, _ *sql.Conn, _, _ string) error { return nil }
 
 type stubRepository struct {
-	insertInstinct func(ctx context.Context, p InsertParams) (string, error)
-	listInstincts  func(ctx context.Context) ([]InstinctRow, error)
-	getInstinct    func(ctx context.Context, shortID string) (*InstinctRow, error)
+	insertInstinct      func(ctx context.Context, p InsertParams) (string, error)
+	listInstincts       func(ctx context.Context) ([]InstinctRow, error)
+	getInstinct         func(ctx context.Context, shortID string) (*InstinctRow, error)
+	listMergedInstincts func(ctx context.Context, teamBranch string) ([]InstinctRow, error)
 }
 
 func (s *stubRepository) InsertInstinct(ctx context.Context, p InsertParams) (string, error) {
@@ -61,6 +62,13 @@ func (s *stubRepository) ListInstincts(ctx context.Context) ([]InstinctRow, erro
 func (s *stubRepository) GetInstinct(ctx context.Context, shortID string) (*InstinctRow, error) {
 	if s.getInstinct != nil {
 		return s.getInstinct(ctx, shortID)
+	}
+	return nil, nil
+}
+
+func (s *stubRepository) ListMergedInstincts(ctx context.Context, teamBranch string) ([]InstinctRow, error) {
+	if s.listMergedInstincts != nil {
+		return s.listMergedInstincts(ctx, teamBranch)
 	}
 	return nil, nil
 }
