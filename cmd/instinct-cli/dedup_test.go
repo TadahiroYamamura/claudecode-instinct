@@ -9,56 +9,6 @@ import (
 	doltrepo "github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/dolt"
 )
 
-// InsertDedupDecisionはdedup_decisionsテーブルにレコードを挿入する
-func TestRepository_InsertDedupDecision(t *testing.T) {
-	ctx, conn := setupTestDB(t)
-	a := InstinctRow{ID: "aaaa0000-0000-0000-0000-000000000000", Content: "知見A", TriggerDesc: "trigger"}
-	b := InstinctRow{ID: "bbbb0000-0000-0000-0000-000000000000", Content: "知見B", TriggerDesc: "trigger"}
-	scores := SimilarityScores{Bigram: 0.8, Trigram: 0.7, Overlap: 0.9}
-	d := DedupDecision{Decision: decisionDistinct, Reasoning: "similar but distinct"}
-
-	repo := doltrepo.NewRepository(conn)
-	if err := repo.InsertDedupDecision(ctx, a, b, d, scores); err != nil {
-		t.Fatalf("InsertDedupDecision: %v", err)
-	}
-	var count int
-	if err := conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM dedup_decisions").Scan(&count); err != nil {
-		t.Fatalf("count: %v", err)
-	}
-	if count != 1 {
-		t.Errorf("expected 1 record, got %d", count)
-	}
-}
-
-// MergeAndDeleteはloserの観察数をwinnerに加算してloserを削除する
-func TestRepository_MergeAndDelete(t *testing.T) {
-	ctx, conn := setupTestDB(t)
-	winnerID, _ := insertInstinct(ctx, conn, InsertParams{Content: "winner", TriggerDesc: "t", Domain: "d", Scope: "project", ObservationCount: 3, ProjectID: "abc"})
-	loserID, _ := insertInstinct(ctx, conn, InsertParams{Content: "loser", TriggerDesc: "t", Domain: "d", Scope: "project", ObservationCount: 2, ProjectID: "abc"})
-
-	winner := InstinctRow{ID: winnerID, ObservationCount: 3}
-	loser := InstinctRow{ID: loserID, ObservationCount: 2}
-
-	repo := doltrepo.NewRepository(conn)
-	if err := repo.MergeAndDelete(ctx, winner, loser); err != nil {
-		t.Fatalf("MergeAndDelete: %v", err)
-	}
-
-	var obsCount int
-	if err := conn.QueryRowContext(ctx, "SELECT observation_count FROM instincts WHERE id = ?", winnerID).Scan(&obsCount); err != nil {
-		t.Fatalf("query: %v", err)
-	}
-	if obsCount != 5 {
-		t.Errorf("expected observation_count=5, got %d", obsCount)
-	}
-	var remaining int
-	if err := conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM instincts WHERE id = ?", loserID).Scan(&remaining); err != nil {
-		t.Fatalf("query: %v", err)
-	}
-	if remaining != 0 {
-		t.Error("expected loser to be deleted")
-	}
-}
 
 func insertLintInstincts(t *testing.T, ctx context.Context, conn *sql.Conn) {
 	t.Helper()

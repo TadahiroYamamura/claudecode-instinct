@@ -24,36 +24,6 @@ func selectAllSelector(rows []InstinctRow, _ io.Writer) ([]string, error) {
 	return ids, nil
 }
 
-// Repository.SubmitToReviewQueueは選択したinstinctをチームブランチのreview_queueに挿入する
-func TestRepository_SubmitToReviewQueue_InsertsOnTeamBranch(t *testing.T) {
-	ctx, conn := setupTestDB(t)
-
-	id, err := insertInstinct(ctx, conn, InsertParams{
-		Content: "submit via repo", TriggerDesc: "often",
-		Domain: "testing", Scope: "project", ObservationCount: 6, ProjectID: "abc123def456",
-	})
-	if err != nil {
-		t.Fatalf("insert: %v", err)
-	}
-	conn.ExecContext(ctx, `CALL dolt_commit('-Am', 'test: instinct')`)
-	conn.ExecContext(ctx, `CALL dolt_checkout('-b', 'personal')`)
-
-	row := InstinctRow{ID: id, Content: "submit via repo", TriggerDesc: "often",
-		Domain: "testing", Scope: "project", ObservationCount: 6}
-
-	if err := doltrepo.NewRepository(conn).SubmitToReviewQueue(ctx, "main", []InstinctRow{row}, "personal", "Test User"); err != nil {
-		t.Fatalf("SubmitToReviewQueue: %v", err)
-	}
-
-	conn.ExecContext(ctx, `CALL dolt_checkout('main')`)
-	var count int
-	if err := conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM review_queue WHERE instinct_id = ?", id).Scan(&count); err != nil {
-		t.Fatalf("count: %v", err)
-	}
-	if count != 1 {
-		t.Errorf("expected 1 record in review_queue, got %d", count)
-	}
-}
 
 // submitToReviewQueue は選択したinstinctをチームブランチのreview_queueに挿入する
 func TestSubmitToReviewQueue_InsertsOnTeamBranch(t *testing.T) {
