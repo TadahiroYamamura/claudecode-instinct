@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -131,6 +132,36 @@ func (r *Repository) MergeAndDelete(ctx context.Context, winner, loser instincts
 	}
 	_, err := r.conn.ExecContext(ctx, "DELETE FROM instincts WHERE id = ?", loser.ID)
 	return err
+}
+
+func (r *Repository) SubmitToReviewQueue(ctx context.Context, teamBranch string, rows []instincts.InstinctRow, personalBranch, submittedBy string) error {
+	if _, err := r.conn.ExecContext(ctx, "CALL dolt_checkout(?)", teamBranch); err != nil {
+		return fmt.Errorf("checkout %s: %w", teamBranch, err)
+	}
+	defer r.conn.ExecContext(ctx, "CALL dolt_checkout(?)", personalBranch) //nolint:errcheck
+
+	for _, row := range rows {
+		_, err := r.conn.ExecContext(ctx, `
+			INSERT INTO review_queue
+			  (instinct_id, content, trigger_desc, domain, observation_count, scope, submitted_by)
+			VALUES (?, ?, ?, ?, ?, ?, ?)
+			ON DUPLICATE KEY UPDATE
+			  submitted_by = VALUES(submitted_by),
+			  submitted_at = CURRENT_TIMESTAMP`,
+			row.ID, row.Content, row.TriggerDesc, row.Domain, row.ObservationCount, row.Scope, submittedBy)
+		if err != nil {
+			return fmt.Errorf("insert review_queue %s: %w", row.ID[:8], err)
+		}
+	}
+
+	msg := fmt.Sprintf("review: submit %d instinct(s) by %s", len(rows), submittedBy)
+	if _, err := r.conn.ExecContext(ctx, "CALL dolt_commit('-Am', ?)", msg); err != nil {
+		if strings.Contains(err.Error(), "nothing to commit") {
+			return nil
+		}
+		return fmt.Errorf("commit review_queue: %w", err)
+	}
+	return nil
 }
 
 func (r *Repository) Commit(ctx context.Context, message string) error {

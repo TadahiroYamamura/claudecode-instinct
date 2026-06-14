@@ -51,6 +51,7 @@ type stubRepository struct {
 	insertDedupDecision  func(ctx context.Context, a, b InstinctRow, d DedupDecision, scores SimilarityScores) error
 	mergeAndDelete       func(ctx context.Context, winner, loser InstinctRow) error
 	commit               func(ctx context.Context, message string) error
+	submitToReviewQueue  func(ctx context.Context, teamBranch string, rows []InstinctRow, personalBranch, submittedBy string) error
 }
 
 func (s *stubRepository) InsertInstinct(ctx context.Context, p InsertParams) (string, error) {
@@ -105,6 +106,13 @@ func (s *stubRepository) MergeAndDelete(ctx context.Context, winner, loser Insti
 func (s *stubRepository) Commit(ctx context.Context, message string) error {
 	if s.commit != nil {
 		return s.commit(ctx, message)
+	}
+	return nil
+}
+
+func (s *stubRepository) SubmitToReviewQueue(ctx context.Context, teamBranch string, rows []InstinctRow, personalBranch, submittedBy string) error {
+	if s.submitToReviewQueue != nil {
+		return s.submitToReviewQueue(ctx, teamBranch, rows, personalBranch, submittedBy)
 	}
 	return nil
 }

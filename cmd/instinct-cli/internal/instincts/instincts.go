@@ -44,4 +44,5 @@ type Repository interface {
 	InsertDedupDecision(ctx context.Context, a, b InstinctRow, d DedupDecision, scores SimilarityScores) error
 	MergeAndDelete(ctx context.Context, winner, loser InstinctRow) error
 	Commit(ctx context.Context, message string) error
+	SubmitToReviewQueue(ctx context.Context, teamBranch string, rows []InstinctRow, personalBranch, submittedBy string) error
 }
