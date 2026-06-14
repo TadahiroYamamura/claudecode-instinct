@@ -9,9 +9,15 @@ import (
 	"path/filepath"
 
 	"github.com/alecthomas/kong"
+
+	doltrepo "github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/dolt"
 )
 
-func openProjectConn(cwd string) (*sql.Conn, string, func(), error) {
+var defaultRepoFn = func(conn *sql.Conn) Repository {
+	return doltrepo.NewRepository(conn)
+}
+
+func openProjectConn(cwd string, repoFn func(*sql.Conn) Repository) (Repository, string, func(), error) {
 	projectDir, err := findProjectDirFrom(cwd)
 	if err != nil {
 		return nil, "", nil, err
@@ -27,19 +33,26 @@ func openProjectConn(cwd string) (*sql.Conn, string, func(), error) {
 		return nil, "", nil, err
 	}
 
-	if _, err := conn.ExecContext(context.Background(), "CALL dolt_checkout(?)", userCfg.Dolt.Branch); err != nil {
+	repo := repoFn(conn)
+	if err := repo.Checkout(context.Background(), userCfg.Dolt.Branch); err != nil {
 		cleanup()
 		return nil, "", nil, fmt.Errorf("checkout %s: %w", userCfg.Dolt.Branch, err)
 	}
 
-	return conn, projectDir, cleanup, nil
+	return repo, projectDir, cleanup, nil
 }
 
-type setupCmd struct {
+type initCmd struct {
 	Yes        bool   `kong:"short='y',help='Accept all defaults without prompting'"`
 	Branch     string `kong:"name='branch',short='b',help='Personal branch name (default: git config user.name)'"`
 	TeamBranch string `kong:"name='team-branch',help='Team branch name (default: main)'"`
-	RemoteURL  string `kong:"name='remote-url',short='r',help='Remote URL (default: git remote get-url origin)'"`
+}
+
+type connectCmd struct {
+	Yes       bool   `kong:"short='y',help='Accept all defaults without prompting'"`
+	Branch    string `kong:"name='branch',short='b',help='Personal branch name (default: git config user.name)'"`
+	RemoteURL string `kong:"name='remote-url',short='r',help='Remote URL'"`
+	Refs      string `kong:"name='refs',help='Dolt refs namespace (e.g. refs/dolt/myproject)'"`
 }
 
 type listCmd struct {
@@ -55,20 +68,34 @@ type commitCmd struct {
 }
 
 type dedupCmd struct{}
-type reviewCmd struct{}
+
+type nominateCmd struct {
+	IDs []string `arg:"" optional:"" help:"Short IDs to nominate, or 'list' to show candidates"`
+}
+
+type reviewListSubCmd struct{}
+type reviewApproveSubCmd struct {
+	IDs []string `arg:"" help:"Short IDs to approve"`
+}
+type reviewCmd struct {
+	List    reviewListSubCmd    `cmd:"" help:"Show review_queue"`
+	Approve reviewApproveSubCmd `cmd:"" help:"Approve instincts and promote to team branch"`
+}
 type pushCmd struct{}
 type pullCmd struct{}
 
 type cliStruct struct {
-	Setup  setupCmd    `cmd:"" help:"Initialize .instinct-db in current directory"`
-	Insert insertFlags `cmd:"" help:"Insert an instinct"`
-	List   listCmd     `cmd:"" help:"List instincts"`
-	Show   showCmd     `cmd:"" help:"Show full details of an instinct"`
-	Commit commitCmd   `cmd:"" help:"Commit working set to Dolt history"`
-	Dedup  dedupCmd    `cmd:"" help:"Detect and merge duplicate instincts using Haiku"`
-	Review reviewCmd   `cmd:"" help:"List instincts pending review (not yet on team branch)"`
-	Push   pushCmd     `cmd:"" help:"Push personal branch to remote repository"`
-	Pull   pullCmd     `cmd:"" help:"Pull team branch from remote repository"`
+	Init     initCmd     `cmd:"" help:"Initialize .instinct-db locally (no remote required)"`
+	Connect  connectCmd  `cmd:"" help:"Connect .instinct-db to a remote (push or clone)"`
+	Insert   insertFlags `cmd:"" help:"Insert an instinct"`
+	List     listCmd     `cmd:"" help:"List instincts"`
+	Show     showCmd     `cmd:"" help:"Show full details of an instinct"`
+	Commit   commitCmd   `cmd:"" help:"Commit working set to Dolt history"`
+	Dedup    dedupCmd    `cmd:"" help:"Detect and merge duplicate instincts using Haiku"`
+	Nominate nominateCmd `cmd:"" help:"Nominate instincts for team review (submit to review_queue)"`
+	Review   reviewCmd   `cmd:"" help:"Promote instincts from review_queue to team branch"`
+	Push     pushCmd     `cmd:"" help:"Push personal branch to remote repository"`
+	Pull     pullCmd     `cmd:"" help:"Pull team branch from remote repository"`
 }
 
 func instinctDbDir(projectDir string) string {
@@ -112,20 +139,23 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 	if err != nil {
 		return err
 	}
+	ctx := context.Background()
 	switch kctx.Command() {
-	case "setup":
-		return runSetup(cwd, cli.Setup, in, out)
+	case "init":
+		return execInit(cwd, initParams{Branch: cli.Init.Branch, TeamBranch: cli.Init.TeamBranch, Yes: cli.Init.Yes}, in, out, defaultRepoFn)
+	case "connect":
+		return execConnect(cwd, connectParams{Branch: cli.Connect.Branch, RemoteURL: cli.Connect.RemoteURL, Refs: cli.Connect.Refs, Yes: cli.Connect.Yes}, in, out, defaultDoltClone, defaultRepoFn)
 	case "insert":
-		conn, projectDir, cleanup, err := openProjectConn(cwd)
+		repo, projectDir, cleanup, err := openProjectConn(cwd, defaultRepoFn)
 		if err != nil {
 			return err
 		}
 		defer cleanup()
-		return execInsert(context.Background(), conn, cli.Insert, func(_ string) (string, error) {
+		return execInsert(ctx, repo, cli.Insert, func(_ string) (string, error) {
 			return resolveProjectID(projectDir)
 		})
 	case "list":
-		conn, projectDir, cleanup, err := openProjectConn(cwd)
+		repo, projectDir, cleanup, err := openProjectConn(cwd, defaultRepoFn)
 		if err != nil {
 			return err
 		}
@@ -135,33 +165,63 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 			cfg = &InstinctConfig{}
 		}
 		if cli.List.Merged {
-			return execListMerged(context.Background(), conn, cfg, os.Stdout)
+			return execListMerged(ctx, repo, cfg, out)
 		}
-		return execList(context.Background(), conn, os.Stdout)
+		return execList(ctx, repo, out)
 	case "show <id>":
-		conn, _, cleanup, err := openProjectConn(cwd)
+		repo, _, cleanup, err := openProjectConn(cwd, defaultRepoFn)
 		if err != nil {
 			return err
 		}
 		defer cleanup()
-		return execShow(context.Background(), conn, cli.Show.ID, os.Stdout)
+		return execShow(ctx, repo, cli.Show.ID, out)
 	case "commit":
-		conn, _, cleanup, err := openProjectConn(cwd)
+		repo, _, cleanup, err := openProjectConn(cwd, defaultRepoFn)
 		if err != nil {
 			return err
 		}
 		defer cleanup()
-		return execCommit(context.Background(), conn, cli.Commit.Message)
+		return execCommit(ctx, repo, cli.Commit.Message)
 	case "dedup":
-		conn, projectDir, cleanup, err := openProjectConn(cwd)
+		repo, projectDir, cleanup, err := openProjectConn(cwd, defaultRepoFn)
 		if err != nil {
 			return err
 		}
 		defer cleanup()
 		cfg, _ := loadConfig(instinctDbDir(projectDir))
-		return execDedup(context.Background(), conn, haikuJudge, similarityThresholdFromConfig(cfg), out)
-	case "review":
-		conn, projectDir, cleanup, err := openProjectConn(cwd)
+		return execDedup(ctx, repo, haikuJudge, similarityThresholdFromConfig(cfg), out)
+	case "nominate", "nominate <ids>":
+		repo, projectDir, cleanup, err := openProjectConn(cwd, defaultRepoFn)
+		if err != nil {
+			return err
+		}
+		defer cleanup()
+		cfg, _ := loadConfig(instinctDbDir(projectDir))
+		if cfg == nil {
+			cfg = &InstinctConfig{}
+		}
+		if len(cli.Nominate.IDs) == 0 || (len(cli.Nominate.IDs) == 1 && cli.Nominate.IDs[0] == "list") {
+			return execNominateList(ctx, repo, cfg, out)
+		}
+		userCfg, err := loadUserConfig(instinctDbDir(projectDir))
+		if err != nil {
+			return err
+		}
+		submittedBy, _ := gitConfigValue("user.name")
+		return execNominate(ctx, repo, cfg, userCfg.Dolt.Branch, submittedBy, cli.Nominate.IDs, out)
+	case "review list":
+		repo, projectDir, cleanup, err := openProjectConn(cwd, defaultRepoFn)
+		if err != nil {
+			return err
+		}
+		defer cleanup()
+		cfg, _ := loadConfig(instinctDbDir(projectDir))
+		if cfg == nil {
+			cfg = &InstinctConfig{}
+		}
+		return execReviewList(ctx, repo, cfg, out)
+	case "review approve <ids>":
+		repo, projectDir, cleanup, err := openProjectConn(cwd, defaultRepoFn)
 		if err != nil {
 			return err
 		}
@@ -174,10 +234,10 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 		if err != nil {
 			return err
 		}
-		submittedBy, _ := gitConfigValue("user.name")
-		return execReview(context.Background(), conn, cfg, userCfg.Dolt.Branch, submittedBy, ttyReviewSelector, out)
+		approvedBy, _ := gitConfigValue("user.name")
+		return execReviewApprove(ctx, repo, cfg, userCfg.Dolt.Branch, approvedBy, cli.Review.Approve.IDs, out)
 	case "push":
-		conn, projectDir, cleanup, err := openProjectConn(cwd)
+		repo, projectDir, cleanup, err := openProjectConn(cwd, defaultRepoFn)
 		if err != nil {
 			return err
 		}
@@ -190,9 +250,9 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 		if err != nil {
 			return err
 		}
-		return execPush(context.Background(), conn, cfg, userCfg.Dolt.Branch, defaultDoltPush, out)
+		return execPush(ctx, repo, cfg, userCfg.Dolt.Branch, out)
 	case "pull":
-		conn, projectDir, cleanup, err := openProjectConn(cwd)
+		repo, projectDir, cleanup, err := openProjectConn(cwd, defaultRepoFn)
 		if err != nil {
 			return err
 		}
@@ -205,7 +265,7 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 		if err != nil {
 			return err
 		}
-		return execPull(context.Background(), conn, cfg, userCfg.Dolt.Branch, defaultDoltPull, out)
+		return execPull(ctx, repo, cfg, userCfg.Dolt.Branch, out)
 	default:
 		return fmt.Errorf("unknown command: %s", kctx.Command())
 	}

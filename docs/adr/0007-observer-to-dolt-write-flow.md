@@ -8,13 +8,13 @@ Accepted
 
 Haiku エージェントが生成した instinct を Dolt DB に書き込む方法として、2 つの案を検討した。
 
-**案 A**: Haiku の `--allowedTools` に `instinct-cli` を追加し、Haiku 自身が直接 `instinct-cli insert` を呼ぶ
+**案 A**: Haiku の `--allowedTools` に `instinct` を追加し、Haiku 自身が直接 `instinct insert` を呼ぶ
 
-**案 B**: Haiku は JSON を標準出力するだけにし、シェルがパースして `instinct-cli insert` を呼ぶ
+**案 B**: Haiku は JSON を標準出力するだけにし、シェルがパースして `instinct insert` を呼ぶ
 
 ## Decision
 
-**案 B** を採用する。Haiku の出力を JSON 限定とし、シェルがパースして `instinct-cli` を呼ぶ。
+**案 B** を採用する。Haiku の出力を JSON 限定とし、シェルがパースして `instinct` を呼ぶ。
 
 Haiku の出力フォーマット:
 
@@ -38,7 +38,7 @@ observer-loop.sh 側の処理（Python で JSON パース）:
 ```python
 for item in data:
     subprocess.run([
-        'instinct-cli', 'insert',
+        'instinct', 'insert',
         '--content', item['content'],
         '--trigger', item['trigger_desc'],
         '--domain',  item.get('domain', ''),
@@ -47,11 +47,11 @@ for item in data:
     ])
 ```
 
-`--project-id` は instinct-cli 側がプロジェクトディレクトリの git 情報から自動生成する。
+`--project-id` は instinct 側がプロジェクトディレクトリの git 情報から自動生成する。
 
 ## Consequences
 
 - Haiku の `--allowedTools` を最小限（`Read` のみ）に保てる
 - Haiku の責務が「観察の分析と JSON 出力」に限定され、ツール呼び出しの副作用がない
 - Haiku が出力した JSON が不正な場合、Python 側でエラーを捕捉しやすい
-- Dolt へのアクセスが `instinct-cli` に一元化され、Go 以外のランタイム（bash/Node.js）が Dolt に直接触れない
+- Dolt へのアクセスが `instinct` に一元化され、Go 以外のランタイム（bash/Node.js）が Dolt に直接触れない

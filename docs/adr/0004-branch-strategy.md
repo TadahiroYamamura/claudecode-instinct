@@ -14,39 +14,46 @@ Dolt のブランチ機能を用いて、個人ブランチとチームブラン
 
 **個人ブランチ**（例: `tadahiro`）
 - Haiku が自動生成した instinct が蓄積される
-- `instinct-cli push` で `refs/dolt/<project>/tadahiro` に push
+- `instinct push` で `refs/dolt/<project>/tadahiro` に push
 
 **チームブランチ**（`main`）
 - 手動キュレーション・レビュー済みの instinct のみを格納
-- 他のメンバーは `instinct-cli pull` で取得
+- 他のメンバーは `instinct pull` で取得
 
 **参照時の統合**（Phase 2 以降）
 - 個人 instinct + チーム instinct を重複排除して参照する
 - Dolt の AS OF 構文でブランチ横断クエリが可能
 
-```sql
--- チームにない個人の instinct を抽出（レビュー待ちキュー）
-SELECT * FROM dolt_diff_instincts
-WHERE from_commit = HASHOF('main')
-  AND to_commit   = HASHOF('tadahiro')
-  AND diff_type   = 'added';
-```
+レビューフローは `review_queue` テーブルを介する。
+
+1. 個人ブランチで `instinct nominate <id...>` → チームブランチの `review_queue` に登録
+2. レビュー担当者が `instinct review list` で確認
+3. `instinct review approve <id...>` で承認 → `instincts` テーブルに昇格、`review_queue` から削除
 
 ## Implementation Notes
 
-個人ブランチ名は `.instinct-db/config.yml` の `dolt.branch` で管理する。
+設定は2ファイルに分割されている。
 
+**config.team.yml**（git管理）
 ```yaml
 dolt:
-  branch: tadahiro  # git config user.name から setup 時に自動設定
+  team_branch: main
+  remote_url: "git@github.com:ORG/REPO.git"
 ```
 
-`instinct-cli setup` 実行時に `git config user.name` を取得してデフォルト値として書き込む。
-取得できない場合は `"me"` にフォールバックする。
+**config.user.yml**（gitignore対象）
+```yaml
+dolt:
+  branch: tadahiro  # git config user.name から init/connect 時に自動設定
+```
+
+個人ブランチ名のサニタイズルール: スペース→`_`、大文字→小文字、その他記号・非ASCII→削除。
+
+`instinct init` / `instinct connect` 実行時に `git config user.name` を取得してデフォルト値として書き込む。取得できない場合は `"me"` にフォールバックする。
 
 ## Consequences
 
 - 未レビューの instinct がチームに自動適用されるリスクがなくなる
-- `dolt_diff_instincts` を使ったレビュー待ちキューの実装が自然にできる
-- 複数メンバーのブランチを UNION することでクロスブランチ dedup も実現できる
+- `review_queue` テーブルを仲介することでレビューフローが明確になる
+- 複数メンバーのブランチを UNION することでクロスブランチ dedup も実現できる（Phase 3 以降）
 - pull は完全手動（Phase 1）。main ブランチはキュレーション済みのため、手動 pull の頻度は低く問題にならない

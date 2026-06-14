@@ -17,11 +17,11 @@ observations.jsonl（ローカル・非共有）
     ↓ 20観察ごとに SIGUSR1
 observer-loop.sh → claude haiku（JSON）
     ↓ jq
-instinct-cli insert → .instinct-db/（Dolt）
+instinct insert → .instinct-db/（Dolt）
     ↓ 手動
-instinct-cli dedup → dedup_decisions
+instinct dedup → dedup_decisions
     ↓ レビュー後
-instinct-cli push → GitHub refs/dolt/<project>/
+instinct push → GitHub refs/dolt/<project>/
 ```
 
 ## 構成

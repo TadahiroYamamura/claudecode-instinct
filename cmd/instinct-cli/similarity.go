@@ -58,12 +58,6 @@ func overlapSimilarity(a, b string) float64 {
 	return float64(intersection) / float64(union)
 }
 
-type SimilarityScores struct {
-	Bigram  float64
-	Trigram float64
-	Overlap float64
-}
-
 func computeAllScores(a, b string) SimilarityScores {
 	return SimilarityScores{
 		Bigram:  bigramSimilarity(a, b),

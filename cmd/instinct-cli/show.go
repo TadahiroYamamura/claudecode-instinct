@@ -2,22 +2,14 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"io"
 )
 
-func execShow(ctx context.Context, conn *sql.Conn, shortID string, w io.Writer) error {
-	var r InstinctRow
-	err := conn.QueryRowContext(ctx,
-		"SELECT id, content, trigger_desc, domain, observation_count, scope, created_at FROM instincts WHERE id LIKE ?",
-		shortID+"%",
-	).Scan(&r.ID, &r.Content, &r.TriggerDesc, &r.Domain, &r.ObservationCount, &r.Scope, &r.CreatedAt)
-	if err == sql.ErrNoRows {
-		return fmt.Errorf("instinct %q not found", shortID)
-	}
+func execShow(ctx context.Context, repo Repository, shortID string, w io.Writer) error {
+	r, err := repo.GetInstinct(ctx, shortID)
 	if err != nil {
-		return fmt.Errorf("show instinct: %w", err)
+		return err
 	}
 	fmt.Fprintf(w, "%s\n\n", r.Content)
 	fmt.Fprintf(w, "[trigger]\n%s\n\n", r.TriggerDesc)

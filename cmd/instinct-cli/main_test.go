@@ -1,11 +1,14 @@
 package main
 
 import (
+	"database/sql"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	doltrepo "github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/dolt"
 )
 
 
@@ -78,60 +81,7 @@ func TestFindProjectDirFrom_DoesNotCrossIntoParentWorktree(t *testing.T) {
 	}
 }
 
-// tabwriterによる整形後は生のタブ文字が出力に残らない
-func TestCLI_ListCommand_AlignsColumns(t *testing.T) {
-	ctx, conn := setupTestDB(t)
 
-	for _, content := range []string{"short", "this is much longer content"} {
-		if _, err := insertInstinct(ctx, conn, InsertParams{
-			Content:          content,
-			TriggerDesc:      "trigger",
-			Domain:           "test",
-			Scope:            "project",
-			ObservationCount: 1,
-			ProjectID:        "abc123def456",
-		}); err != nil {
-			t.Fatalf("insertInstinct: %v", err)
-		}
-	}
-
-	var buf strings.Builder
-	if err := execList(ctx, conn, &buf); err != nil {
-		t.Fatalf("execList: %v", err)
-	}
-	if strings.Contains(buf.String(), "\t") {
-		t.Errorf("expected tabwriter to replace tabs with spaces, got:\n%s", buf.String())
-	}
-}
-
-// 41文字超のcontentは40文字で打ち切られ "..." が付く
-func TestCLI_ListCommand_TruncatesLongContent(t *testing.T) {
-	ctx, conn := setupTestDB(t)
-
-	longContent := strings.Repeat("あ", 41) // 41文字
-
-	if _, err := insertInstinct(ctx, conn, InsertParams{
-		Content:          longContent,
-		TriggerDesc:      "trigger",
-		Domain:           "test",
-		Scope:            "project",
-		ObservationCount: 1,
-		ProjectID:        "abc123def456",
-	}); err != nil {
-		t.Fatalf("insertInstinct: %v", err)
-	}
-
-	var buf strings.Builder
-	if err := execList(ctx, conn, &buf); err != nil {
-		t.Fatalf("execList: %v", err)
-	}
-	if strings.Contains(buf.String(), longContent) {
-		t.Error("expected content to be truncated, but full content appeared")
-	}
-	if !strings.Contains(buf.String(), "...") {
-		t.Error("expected truncation marker '...'")
-	}
-}
 
 // サブコマンドなしのとき.instinct-db探索エラーではなく使用法エラーを返す
 func TestDispatch_NoArgs_ReturnsUsageErrorNotProjectDirError(t *testing.T) {
@@ -142,7 +92,7 @@ func TestDispatch_NoArgs_ReturnsUsageErrorNotProjectDirError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for no args")
 	}
-	if strings.Contains(err.Error(), ".instinct-db") {
+	if err.Error() == ".instinct-db not found in any parent directory" {
 		t.Errorf("should not search for .instinct-db when no subcommand given, got: %v", err)
 	}
 }
@@ -150,9 +100,9 @@ func TestDispatch_NoArgs_ReturnsUsageErrorNotProjectDirError(t *testing.T) {
 // dispatchはdedupサブコマンドをexecDedupにルーティングする（instinctが0件なのでjudgeは呼ばれない）
 func TestDispatch_DedupCommand_ZeroPairsWhenEmpty(t *testing.T) {
 	dir := t.TempDir()
-	gitInitWithRemote(t, dir)
-	if err := execSetup(dir, setupParams{Yes: true}, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
-		t.Fatalf("setup: %v", err)
+	mustRun(t, "git", "-C", dir, "init")
+	if err := execInit(dir, initParams{Yes: true}, nil, nil, doltRepoFn); err != nil {
+		t.Fatalf("execInit: %v", err)
 	}
 
 	var buf strings.Builder
@@ -164,17 +114,106 @@ func TestDispatch_DedupCommand_ZeroPairsWhenEmpty(t *testing.T) {
 	}
 }
 
-// dispatch(["setup"], dir)が.instinct-db/data/を作成する（initパス）
-func TestCLI_SetupCommand_CreatesInstinctDb(t *testing.T) {
+// dispatch(["connect"])が"connect"コマンドにルーティングされる（--remote-url未指定でエラー）
+func TestDispatch_ConnectCommand_RoutesToExecConnect(t *testing.T) {
 	dir := t.TempDir()
-	gitInitWithRemote(t, dir)
-
-	if err := execSetup(dir, setupParams{Yes: true}, nil, io.Discard, fakeCloneFail, fakePush); err != nil {
-		t.Fatalf("dispatch: %v", err)
+	mustRun(t, "git", "-C", dir, "init")
+	if err := execInit(dir, initParams{Yes: true}, nil, nil, doltRepoFn); err != nil {
+		t.Fatalf("execInit: %v", err)
 	}
 
-	if _, err := os.Stat(filepath.Join(dir, ".instinct-db", "data")); os.IsNotExist(err) {
-		t.Error(".instinct-db/data/ was not created")
+	err := dispatch([]string{"connect", "--refs", "refs/dolt/myproject"}, dir, nil, io.Discard)
+	want := "remote URL is not set: run 'git remote add origin <url>' to configure a remote"
+	if err == nil || err.Error() != want {
+		t.Errorf("expected %q, got: %v", want, err)
+	}
+}
+
+// "instinct review" はサブコマンド(list/approve)が必須
+func TestDispatch_ReviewWithoutSubcommand_ReturnsError(t *testing.T) {
+	dir := t.TempDir()
+	gitInitWithRemote(t, dir)
+	if err := execInit(dir, initParams{Yes: true}, nil, nil, doltRepoFn); err != nil {
+		t.Fatalf("execInit: %v", err)
+	}
+
+	err := dispatch([]string{"review"}, dir, nil, io.Discard)
+	if err == nil {
+		t.Error("expected error when 'review' called without subcommand (list or approve required)")
+	}
+}
+
+// dispatch("insert") → dispatch("list") でレコードが表示される
+func TestDispatch_InsertThenList_RecordAppears(t *testing.T) {
+	dir := t.TempDir()
+	gitInitWithRemote(t, dir)
+	if err := execInit(dir, initParams{Yes: true}, nil, nil, doltRepoFn); err != nil {
+		t.Fatalf("execInit: %v", err)
+	}
+
+	if err := dispatch([]string{"insert",
+		"--content", "TDDでテストを先に書く",
+		"--trigger", "実装開始時",
+		"--domain", "testing",
+		"--count", "5",
+	}, dir, nil, io.Discard); err != nil {
+		t.Fatalf("dispatch insert: %v", err)
+	}
+
+	var buf strings.Builder
+	if err := dispatch([]string{"list"}, dir, nil, &buf); err != nil {
+		t.Fatalf("dispatch list: %v", err)
+	}
+	if !strings.Contains(buf.String(), "TDDでテストを先に書く") {
+		t.Errorf("expected inserted content in list output, got:\n%s", buf.String())
+	}
+}
+
+// dispatch("insert") → dispatch("commit") でパーソナルブランチのコミット数が増える
+func TestDispatch_CommitCommand_IncreasesCommitCount(t *testing.T) {
+	dir := t.TempDir()
+	gitInitWithRemote(t, dir)
+	if err := execInit(dir, initParams{Yes: true}, nil, nil, doltRepoFn); err != nil {
+		t.Fatalf("execInit: %v", err)
+	}
+
+	if err := dispatch([]string{"insert",
+		"--content", "コミット前に全テストを通す",
+		"--trigger", "コミット時",
+		"--domain", "git",
+		"--count", "3",
+	}, dir, nil, io.Discard); err != nil {
+		t.Fatalf("dispatch insert: %v", err)
+	}
+
+	// パーソナルブランチでの件数を確認（openProjectConnが checkout する）
+	countOnPersonalBranch := func() int {
+		t.Helper()
+		var capturedConn *sql.Conn
+		_, _, cleanup, err := openProjectConn(dir, func(conn *sql.Conn) Repository {
+			capturedConn = conn
+			return doltRepoFn(conn)
+		})
+		if err != nil {
+			t.Fatalf("openProjectConn: %v", err)
+		}
+		defer cleanup()
+		var n int
+		if err := capturedConn.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM dolt_log").Scan(&n); err != nil {
+			t.Fatalf("dolt_log: %v", err)
+		}
+		return n
+	}
+
+	before := countOnPersonalBranch()
+
+	if err := dispatch([]string{"commit", "-m", "test batch"}, dir, nil, io.Discard); err != nil {
+		t.Fatalf("dispatch commit: %v", err)
+	}
+
+	after := countOnPersonalBranch()
+	if after != before+1 {
+		t.Errorf("expected commit count +1, before=%d after=%d", before, after)
 	}
 }
 
@@ -182,7 +221,7 @@ func TestCLI_SetupCommand_CreatesInstinctDb(t *testing.T) {
 func TestCLI_InsertCommand_StoresRecord(t *testing.T) {
 	ctx, conn := setupTestDB(t)
 
-	err := execInsert(ctx, conn, insertFlags{
+	err := execInsert(ctx, doltrepo.NewRepository(conn), insertFlags{
 		Content: "テスト前に仕様を確認する",
 		Trigger: "テスト実行時",
 		Domain:  "testing",

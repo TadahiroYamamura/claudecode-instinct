@@ -2,7 +2,7 @@
 paths: "cmd/**,**/.instinct-db/**"
 ---
 
-# instinct-cli 実装リファレンス
+# instinct 実装リファレンス
 
 ## テーブルスキーマ
 
@@ -10,7 +10,7 @@ paths: "cmd/**,**/.instinct-db/**"
 
 ```sql
 CREATE TABLE instincts (
-  id                VARCHAR(64)   PRIMARY KEY,  -- UUID（instinct-cli が生成）
+  id                VARCHAR(64)   PRIMARY KEY,  -- UUID（instinct が生成）
   content           TEXT          NOT NULL,
   trigger_desc      TEXT          NOT NULL,
   domain            VARCHAR(128),
@@ -49,6 +49,22 @@ CREATE TABLE dedup_decisions (
 );
 ```
 
+### review_queue
+
+```sql
+CREATE TABLE review_queue (
+  instinct_id     VARCHAR(64)   PRIMARY KEY,
+  content         TEXT          NOT NULL,
+  trigger_desc    TEXT          NOT NULL,
+  domain          VARCHAR(128),
+  observation_count INT         NOT NULL DEFAULT 0,
+  scope           ENUM('project','global') NOT NULL DEFAULT 'project',
+  project_id      VARCHAR(12)   NOT NULL DEFAULT '',
+  submitted_by    VARCHAR(256)  NOT NULL,
+  submitted_at    TIMESTAMP     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
+
 ## 設定ファイル構造
 
 設定は2ファイルに分割されている。
@@ -78,22 +94,26 @@ dolt:
 
 ```yaml
 dolt:
-  branch: tadahiro  # 個人ブランチ名（setup時にgit config user.nameから自動設定、スペースはハイフンに変換）
+  branch: tadahiro  # 個人ブランチ名（init/connect時にgit config user.nameから自動設定、スペース→_・大文字→小文字・その他記号/非ASCII→削除）
 ```
 
 **config.user.yml が存在しない = setup 未実施 → エラー**（フォールバックなし）
 
-## instinct-cli サブコマンド
+## instinct サブコマンド
 
 | コマンド | 説明 |
 |---------|------|
-| `instinct-cli setup [-y]` | Dolt DB 初期化 + config.yml 生成（対話形式、`-y` で非対話） |
-| `instinct-cli insert` | instinct を working set に INSERT（commit しない） |
-| `instinct-cli commit [-m msg]` | working set を Dolt commit として記録（observer-loop.sh がバッチ後に呼ぶ） |
-| `instinct-cli list` | 一覧表示 |
-| `instinct-cli list --merged` | 個人 + チームの統合一覧（重複排除） |
-| `instinct-cli show <id>` | 指定した instinct の全フィールドを全文表示 |
-| `instinct-cli dedup` | Haiku によるブランチ内 dedup（dedup_decisions に記録 + commit） |
-| `instinct-cli review` | TUI でレビュー候補を選択し review_queue に登録（observation_count >= review_min かつチームブランチ未マージのもの） |
-| `instinct-cli push` | config.user.yml の branch をリモートへ push（branch 未設定はエラー、main へのフォールバックなし） |
-| `instinct-cli pull` | チームブランチと個人ブランチの両方をpull（チーム→個人の順、完了後は個人ブランチに滞留） |
+| `instinct init [-y] [-b branch] [--team-branch branch]` | Dolt DB をローカルに初期化（リモート不要）。エラー時は作成したファイルをクリーンアップ |
+| `instinct connect [-y] [-b branch] [-r remote-url] [--refs refs]` | .instinct-db をリモートに接続（push / clone）。エラー時は作成したファイルをクリーンアップ |
+| `instinct insert` | instinct を working set に INSERT（commit しない） |
+| `instinct commit [-m msg]` | working set を Dolt commit として記録（observer-loop.sh がバッチ後に呼ぶ） |
+| `instinct list` | 一覧表示 |
+| `instinct list --merged` | 個人 + チームの統合一覧（重複排除） |
+| `instinct show <id>` | 指定した instinct の全フィールドを全文表示 |
+| `instinct dedup` | Haiku によるブランチ内 dedup（dedup_decisions に記録 + commit） |
+| `instinct nominate [list]` | 推薦候補一覧を表示（observation_count >= review_min かつチームブランチ未マージのもの） |
+| `instinct nominate <id...>` | 指定 ID を review_queue に登録（推薦）。引数なし or `list` で一覧表示に fallback |
+| `instinct review list` | review_queue の一覧を表示（チームブランチ上の review_queue を参照） |
+| `instinct review approve <id...>` | 指定 ID を承認してチームブランチに昇格 |
+| `instinct push` | config.user.yml の branch をリモートへ push（branch 未設定はエラー、main へのフォールバックなし） |
+| `instinct pull` | チームブランチと個人ブランチの両方を pull（チーム→個人の順）。個人ブランチがリモート未存在の場合はスキップ（エラーにならない） |

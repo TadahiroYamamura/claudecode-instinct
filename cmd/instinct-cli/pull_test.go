@@ -2,48 +2,37 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"strings"
 	"testing"
-)
 
-var nopPull doltPullFunc = func(_ context.Context, _ *sql.Conn, _, _ string) error {
-	return nil
-}
+	doltrepo "github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/dolt"
+)
 
 // execPullはremote_urlが未設定のときエラーを返す
 func TestExecPull_FailsWhenRemoteURLEmpty(t *testing.T) {
-	ctx, conn := setupTestDB(t)
-
 	var buf strings.Builder
-	if err := execPull(ctx, conn, &InstinctConfig{}, "myuser", nopPull, &buf); err == nil {
+	if err := execPull(context.Background(), &stubRepository{}, &InstinctConfig{}, "myuser", &buf); err == nil {
 		t.Fatal("expected error when remote_url is empty, got nil")
 	}
 }
 
 // execPullはteam_branchが未設定のときエラーを返す
 func TestExecPull_FailsWhenTeamBranchEmpty(t *testing.T) {
-	ctx, conn := setupTestDB(t)
-
 	cfg := &InstinctConfig{Dolt: DoltConfig{RemoteURL: "git@github.com:org/repo.git"}}
 	var buf strings.Builder
-	if err := execPull(ctx, conn, cfg, "myuser", nopPull, &buf); err == nil {
+	if err := execPull(context.Background(), &stubRepository{}, cfg, "myuser", &buf); err == nil {
 		t.Fatal("expected error when team_branch is empty, got nil")
 	}
 }
 
 // execPullはlocalBranchが空のときエラーを返す
 func TestExecPull_FailsWhenLocalBranchEmpty(t *testing.T) {
-	ctx, conn := setupTestDB(t)
-
-	cfg := &InstinctConfig{
-		Dolt: DoltConfig{
-			TeamBranch: "main",
-			RemoteURL:  "git@github.com:org/repo.git",
-		},
-	}
+	cfg := &InstinctConfig{Dolt: DoltConfig{
+		TeamBranch: "main",
+		RemoteURL:  "git@github.com:org/repo.git",
+	}}
 	var buf strings.Builder
-	if err := execPull(ctx, conn, cfg, "", nopPull, &buf); err == nil {
+	if err := execPull(context.Background(), &stubRepository{}, cfg, "", &buf); err == nil {
 		t.Fatal("expected error when localBranch is empty, got nil")
 	}
 }
@@ -61,7 +50,7 @@ func TestExecPull_RegistersRemote(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	_ = execPull(ctx, conn, cfg, "myuser", nopPull, &buf)
+	_ = execPull(ctx, doltrepo.NewRepository(conn), cfg, "myuser", &buf)
 
 	var count int
 	if err := conn.QueryRowContext(ctx,
@@ -74,11 +63,10 @@ func TestExecPull_RegistersRemote(t *testing.T) {
 	}
 }
 
-// execPullはチームブランチと個人ブランチの両方をこの順番でpullする
-func TestExecPull_PullsBothBranchesInOrder(t *testing.T) {
+// execPullはチームブランチと個人ブランチの両方をこの順番でsyncする
+func TestExecPull_SyncsBothBranchesInOrder(t *testing.T) {
 	ctx, conn := setupTestDB(t)
 
-	// 個人ブランチをDB内に作成しておく
 	if _, err := conn.ExecContext(ctx, "CALL dolt_checkout('-b', 'myuser')"); err != nil {
 		t.Fatalf("create myuser branch: %v", err)
 	}
@@ -94,25 +82,27 @@ func TestExecPull_PullsBothBranchesInOrder(t *testing.T) {
 		},
 	}
 
-	var pulledBranches []string
-	capturePull := func(_ context.Context, _ *sql.Conn, _, branch string) error {
-		pulledBranches = append(pulledBranches, branch)
-		return nil
+	var syncedBranches []string
+	repo := &stubRepository{
+		sync: func(_ context.Context, _, branch string) error {
+			syncedBranches = append(syncedBranches, branch)
+			return nil
+		},
 	}
 
 	var buf strings.Builder
-	if err := execPull(ctx, conn, cfg, "myuser", capturePull, &buf); err != nil {
+	if err := execPull(ctx, repo, cfg, "myuser", &buf); err != nil {
 		t.Fatalf("execPull: %v", err)
 	}
 
-	if len(pulledBranches) != 2 {
-		t.Fatalf("expected 2 pull calls, got %d: %v", len(pulledBranches), pulledBranches)
+	if len(syncedBranches) != 2 {
+		t.Fatalf("expected 2 sync calls, got %d: %v", len(syncedBranches), syncedBranches)
 	}
-	if pulledBranches[0] != "main" {
-		t.Errorf("first pull should be team branch main, got %q", pulledBranches[0])
+	if syncedBranches[0] != "main" {
+		t.Errorf("first sync should be team branch main, got %q", syncedBranches[0])
 	}
-	if pulledBranches[1] != "myuser" {
-		t.Errorf("second pull should be personal branch myuser, got %q", pulledBranches[1])
+	if syncedBranches[1] != "myuser" {
+		t.Errorf("second sync should be personal branch myuser, got %q", syncedBranches[1])
 	}
 }
 
@@ -133,8 +123,14 @@ func TestExecPull_StaysOnPersonalBranch(t *testing.T) {
 			RemoteURL:  "git@github.com:org/repo.git",
 		},
 	}
+	repo := &stubRepository{
+		checkout: func(ctx context.Context, branch string) error {
+			_, err := conn.ExecContext(ctx, "CALL dolt_checkout(?)", branch)
+			return err
+		},
+	}
 	var buf strings.Builder
-	if err := execPull(ctx, conn, cfg, "myuser", nopPull, &buf); err != nil {
+	if err := execPull(ctx, repo, cfg, "myuser", &buf); err != nil {
 		t.Fatalf("execPull: %v", err)
 	}
 

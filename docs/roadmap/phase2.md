@@ -1,19 +1,19 @@
-# Phase 2 — instinct-cli サブコマンド実装
+# Phase 2 — instinct サブコマンド実装
 
 ## スコープ
 
-Phase 1 で insert のみ実装した instinct-cli に残りのサブコマンドを追加し、
+Phase 1 で insert のみ実装した instinct に残りのサブコマンドを追加し、
 日常的な instinct の確認・整理・共有ができる状態にする。
 
 ## タスク
 
-- [x] `instinct-cli list` — 一覧表示（content は40文字で打ち切り、ID短縮形・ヘッダー付きテーブル）
-- [x] `instinct-cli list --merged` — 個人 + チームの統合一覧（重複排除）
-- [x] `instinct-cli show <id>` — 指定した instinct の全フィールドを全文表示（Markdown風セクション形式）
-- [x] `instinct-cli dedup` — Haiku によるブランチ内 dedup
-- [x] `instinct-cli review` — main にない新規 instinct 一覧（レビュー待ちキュー）
-- [x] `instinct-cli push` — 個人ブランチをリモートへ送信
-- [x] `instinct-cli pull` — チームブランチをリモートから取得
+- [x] `instinct list` — 一覧表示（content は40文字で打ち切り、ID短縮形・ヘッダー付きテーブル）
+- [x] `instinct list --merged` — 個人 + チームの統合一覧（重複排除）
+- [x] `instinct show <id>` — 指定した instinct の全フィールドを全文表示（Markdown風セクション形式）
+- [x] `instinct dedup` — Haiku によるブランチ内 dedup
+- [x] `instinct review` — main にない新規 instinct 一覧（レビュー待ちキュー）
+- [x] `instinct push` — 個人ブランチをリモートへ送信
+- [x] `instinct pull` — チームブランチをリモートから取得
 
 ## 前提
 

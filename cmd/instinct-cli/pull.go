@@ -2,19 +2,14 @@ package main
 
 import (
 	"context"
-	"database/sql"
+	"errors"
 	"fmt"
 	"io"
+
+	"github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/instincts"
 )
 
-type doltPullFunc func(ctx context.Context, conn *sql.Conn, remote, branch string) error
-
-var defaultDoltPull doltPullFunc = func(ctx context.Context, conn *sql.Conn, remote, branch string) error {
-	_, err := conn.ExecContext(ctx, "CALL dolt_pull(?, ?)", remote, branch)
-	return err
-}
-
-func execPull(ctx context.Context, conn *sql.Conn, cfg *InstinctConfig, localBranch string, pull doltPullFunc, w io.Writer) error {
+func execPull(ctx context.Context, repo Repository, cfg *InstinctConfig, localBranch string, w io.Writer) error {
 	if cfg.Dolt.RemoteURL == "" {
 		return fmt.Errorf("dolt.remote_url is not configured in config.yml")
 	}
@@ -25,17 +20,20 @@ func execPull(ctx context.Context, conn *sql.Conn, cfg *InstinctConfig, localBra
 		return fmt.Errorf("local branch is not configured in config.user.yml")
 	}
 
-	ensureRemote(ctx, conn, cfg.Dolt.Refs, cfg.Dolt.RemoteURL)
+	repo.EnsureRemote(ctx, cfg.Dolt.Refs, cfg.Dolt.RemoteURL)
 
-	// チームブランチを更新してから個人ブランチを更新する
-	_, _ = conn.ExecContext(ctx, "CALL dolt_checkout(?)", cfg.Dolt.TeamBranch)
-	if err := pull(ctx, conn, "origin", cfg.Dolt.TeamBranch); err != nil {
+	repo.Checkout(ctx, cfg.Dolt.TeamBranch) //nolint:errcheck
+	if err := repo.Sync(ctx, "origin", cfg.Dolt.TeamBranch); err != nil {
 		return fmt.Errorf("pull team branch: %w", err)
 	}
 
-	_, _ = conn.ExecContext(ctx, "CALL dolt_checkout(?)", localBranch)
-	if err := pull(ctx, conn, "origin", localBranch); err != nil {
-		return fmt.Errorf("pull personal branch: %w", err)
+	repo.Checkout(ctx, localBranch) //nolint:errcheck
+	if err := repo.Sync(ctx, "origin", localBranch); err != nil {
+		if !errors.Is(err, instincts.ErrBranchNotOnRemote) {
+			return fmt.Errorf("pull personal branch: %w", err)
+		}
+		fmt.Fprintf(w, "pulled %s from %s (personal branch %s not on remote yet)\n", cfg.Dolt.TeamBranch, cfg.Dolt.RemoteURL, localBranch)
+		return nil
 	}
 
 	fmt.Fprintf(w, "pulled %s and %s from %s\n", cfg.Dolt.TeamBranch, localBranch, cfg.Dolt.RemoteURL)

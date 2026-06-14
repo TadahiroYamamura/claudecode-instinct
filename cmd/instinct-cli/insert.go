@@ -2,21 +2,10 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	"github.com/alecthomas/kong"
-	"github.com/google/uuid"
 )
-
-type InsertParams struct {
-	Content          string
-	TriggerDesc      string
-	Domain           string
-	Scope            string
-	ObservationCount int
-	ProjectID        string
-}
 
 type insertFlags struct {
 	Content string `kong:"required,name='content',help='instinct content'"`
@@ -26,7 +15,7 @@ type insertFlags struct {
 	Scope   string `kong:"name='scope',default='project',help='scope (project|global)'"`
 }
 
-func runInsert(ctx context.Context, conn *sql.Conn, args []string, projectIDFn func(string) (string, error)) error {
+func runInsert(ctx context.Context, repo Repository, args []string, projectIDFn func(string) (string, error)) error {
 	var f insertFlags
 	p, err := kong.New(&f)
 	if err != nil {
@@ -35,15 +24,15 @@ func runInsert(ctx context.Context, conn *sql.Conn, args []string, projectIDFn f
 	if _, err := p.Parse(args); err != nil {
 		return err
 	}
-	return execInsert(ctx, conn, f, projectIDFn)
+	return execInsert(ctx, repo, f, projectIDFn)
 }
 
-func execInsert(ctx context.Context, conn *sql.Conn, f insertFlags, projectIDFn func(string) (string, error)) error {
+func execInsert(ctx context.Context, repo Repository, f insertFlags, projectIDFn func(string) (string, error)) error {
 	projectID, err := projectIDFn("")
 	if err != nil {
 		return fmt.Errorf("project id: %w", err)
 	}
-	_, err = insertInstinct(ctx, conn, InsertParams{
+	_, err = repo.InsertInstinct(ctx, InsertParams{
 		Content:          f.Content,
 		TriggerDesc:      f.Trigger,
 		Domain:           f.Domain,
@@ -54,15 +43,3 @@ func execInsert(ctx context.Context, conn *sql.Conn, f insertFlags, projectIDFn 
 	return err
 }
 
-func insertInstinct(ctx context.Context, conn *sql.Conn, p InsertParams) (string, error) {
-	id := uuid.New().String()
-	_, err := conn.ExecContext(ctx,
-		`INSERT INTO instincts (id, content, trigger_desc, domain, scope, observation_count, project_id)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		id, p.Content, p.TriggerDesc, p.Domain, p.Scope, p.ObservationCount, p.ProjectID,
-	)
-	if err != nil {
-		return "", fmt.Errorf("insert instinct: %w", err)
-	}
-	return id, nil
-}

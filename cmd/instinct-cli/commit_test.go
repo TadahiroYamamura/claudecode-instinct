@@ -2,13 +2,47 @@ package main
 
 import (
 	"testing"
+
+	doltrepo "github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/dolt"
 )
 
-// execCommitはworking setをdoltコミットとして記録する
-func TestExecCommit_CreatesDoltCommit(t *testing.T) {
+// working setが空のときcommitはエラーを返さず成功する（observer-loop.shが冪等に呼べる）
+func TestExecCommit_NothingToCommit_SucceedsSilently(t *testing.T) {
+	ctx, conn := setupTestDB(t)
+	repo := doltRepoFn(conn)
+
+	// DDLをコミットしてworking setをクリーンにする
+	if err := execCommit(ctx, repo, "init"); err != nil {
+		t.Fatalf("initial commit: %v", err)
+	}
+
+	// working setが空 → エラーにならない
+	if err := execCommit(ctx, repo, "should be no-op"); err != nil {
+		t.Errorf("expected no error when nothing to commit, got: %v", err)
+	}
+}
+
+// execCommitはカスタムメッセージをdolt_logに記録する
+func TestExecCommit_StoresCustomMessage(t *testing.T) {
 	ctx, conn := setupTestDB(t)
 
-	// working setに変更を作る（commit対象）
+	if err := execCommit(ctx, doltRepoFn(conn), "my custom message"); err != nil {
+		t.Fatalf("execCommit: %v", err)
+	}
+
+	var msg string
+	if err := conn.QueryRowContext(ctx, "SELECT message FROM dolt_log ORDER BY date DESC LIMIT 1").Scan(&msg); err != nil {
+		t.Fatalf("query dolt_log: %v", err)
+	}
+	if msg != "my custom message" {
+		t.Errorf("expected message 'my custom message', got %q", msg)
+	}
+}
+
+// execCommitはRepositoryを通じてworking setをdoltコミットとして記録する
+func TestExecCommit_CreatesDoltCommitViaRepository(t *testing.T) {
+	ctx, conn := setupTestDB(t)
+
 	if _, err := insertInstinct(ctx, conn, InsertParams{
 		Content: "テスト前にlintを通す", TriggerDesc: "テスト実行時",
 		Domain: "testing", Scope: "project", ObservationCount: 1, ProjectID: "abc",
@@ -21,7 +55,7 @@ func TestExecCommit_CreatesDoltCommit(t *testing.T) {
 		t.Fatalf("dolt_log before: %v", err)
 	}
 
-	if err := execCommit(ctx, conn, "observer: 1 instinct"); err != nil {
+	if err := execCommit(ctx, doltrepo.NewRepository(conn), "observer: 1 instinct"); err != nil {
 		t.Fatalf("execCommit: %v", err)
 	}
 
@@ -33,3 +67,4 @@ func TestExecCommit_CreatesDoltCommit(t *testing.T) {
 		t.Errorf("expected dolt_log to grow by 1, before=%d after=%d", before, after)
 	}
 }
+
