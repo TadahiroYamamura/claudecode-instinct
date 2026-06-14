@@ -85,7 +85,7 @@ func TestExecDedup_SkipsPairsBelowThreshold(t *testing.T) {
 
 	var buf strings.Builder
 	// threshold=1.0 なら完全一致以外はすべてスキップ
-	if err := execDedup(ctx, conn, judge, 1.0, &buf); err != nil {
+	if err := execDedup(ctx, doltrepo.NewRepository(conn), judge, 1.0, &buf); err != nil {
 		t.Fatalf("execDedup: %v", err)
 	}
 	if callCount != 0 {
@@ -101,7 +101,7 @@ func TestExecDedup_EmptyInstinctsReportsZeroPairs(t *testing.T) {
 	judge := func(_ context.Context, _, _ InstinctRow) (DedupDecision, error) {
 		return DedupDecision{}, nil
 	}
-	if err := execDedup(ctx, conn, judge, 0.0, &buf); err != nil {
+	if err := execDedup(ctx, doltrepo.NewRepository(conn), judge, 0.0, &buf); err != nil {
 		t.Fatalf("execDedup: %v", err)
 	}
 	if !strings.Contains(buf.String(), "0") {
@@ -119,7 +119,7 @@ func TestExecDedup_DuplicateMergesObservationCountAndDeletesOne(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	if err := execDedup(ctx, conn, judge, 0.0, &buf); err != nil {
+	if err := execDedup(ctx, doltrepo.NewRepository(conn), judge, 0.0, &buf); err != nil {
 		t.Fatalf("execDedup: %v", err)
 	}
 
@@ -152,7 +152,7 @@ func TestExecDedup_AllModelScoresAreRecorded(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	if err := execDedup(ctx, conn, judge, 0.0, &buf); err != nil {
+	if err := execDedup(ctx, doltrepo.NewRepository(conn), judge, 0.0, &buf); err != nil {
 		t.Fatalf("execDedup: %v", err)
 	}
 
@@ -183,7 +183,7 @@ func TestExecDedup_DuplicateDecisionIsRecorded(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	if err := execDedup(ctx, conn, judge, 0.0, &buf); err != nil {
+	if err := execDedup(ctx, doltrepo.NewRepository(conn), judge, 0.0, &buf); err != nil {
 		t.Fatalf("execDedup: %v", err)
 	}
 

@@ -2,11 +2,8 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"io"
-
-	doltrepo "github.com/TadahiroYamamura/claudecode-instinct/cmd/instinct-cli/internal/dolt"
 )
 
 const (
@@ -16,8 +13,7 @@ const (
 
 type DedupJudge func(ctx context.Context, a, b InstinctRow) (DedupDecision, error)
 
-func execDedup(ctx context.Context, conn *sql.Conn, judge DedupJudge, threshold float64, w io.Writer) error {
-	repo := doltrepo.NewRepository(conn)
+func execDedup(ctx context.Context, repo Repository, judge DedupJudge, threshold float64, w io.Writer) error {
 	instincts, err := repo.ListInstincts(ctx)
 	if err != nil {
 		return err
@@ -49,7 +45,7 @@ func execDedup(ctx context.Context, conn *sql.Conn, judge DedupJudge, threshold 
 
 	if pairs > 0 {
 		msg := fmt.Sprintf("dedup: %d pairs checked", pairs)
-		if _, err := conn.ExecContext(ctx, "CALL dolt_commit('-Am', ?)", msg); err != nil {
+		if err := repo.Commit(ctx, msg); err != nil {
 			return fmt.Errorf("dolt_commit: %w", err)
 		}
 	}

@@ -170,7 +170,7 @@ func dispatch(args []string, cwd string, in io.Reader, out io.Writer) error {
 		}
 		defer cleanup()
 		cfg, _ := loadConfig(instinctDbDir(projectDir))
-		return execDedup(context.Background(), conn, haikuJudge, similarityThresholdFromConfig(cfg), out)
+		return execDedup(context.Background(), doltrepo.NewRepository(conn), haikuJudge, similarityThresholdFromConfig(cfg), out)
 	case "review":
 		conn, projectDir, cleanup, err := openProjectConn(cwd)
 		if err != nil {
