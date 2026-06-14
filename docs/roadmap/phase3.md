@@ -10,7 +10,7 @@ Phase 1 で蓄積されたデータを活用し、instinct の品質向上とチ
 - [ ] 自動品質チェック（生成 instinct のスコアリング・フィルタリング）
 - [ ] dedup の ML モデル化（dedup_decisions を訓練データとして活用）
 - [ ] `list` / `dedup` に `--before` / `--after` オプション追加（期間指定でデータを絞り込む）
-- [ ] `instinct-cli dedup --cross-branch` — 複数個人ブランチ横断 dedup（チームメンバーが増えてから）
+- [ ] `instinct dedup --cross-branch` — 複数個人ブランチ横断 dedup（チームメンバーが増えてから）
 
 ## 前提
 

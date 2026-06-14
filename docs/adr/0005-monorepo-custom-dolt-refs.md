@@ -21,7 +21,7 @@ push 結果:
 - backend の instinct → `refs/dolt/backend/<branch>`
 - mobile の instinct → `refs/dolt/mobile/<branch>`
 
-この refs 値はプロジェクトルートの `.instinct-db/config.yml` に記載し、`instinct-cli setup` 実行時の cwd 名（`basename $(pwd)`）から自動推定する。`setup` はその cwd に `.instinct-db/` を作成するため、以降はこのディレクトリがプロジェクトルートとして機能する。
+この refs 値はプロジェクトルートの `.instinct-db/config.team.yml` に記載し、`instinct init` / `instinct connect` 実行時の cwd 名（`basename $(pwd)`）から自動推定する。これらのコマンドはその cwd に `.instinct-db/` を作成するため、以降はこのディレクトリがプロジェクトルートとして機能する。
 
 ### プロジェクト ID の生成
 
@@ -36,6 +36,6 @@ project_id = sha256(hash_input)[:12]
 ## Consequences
 
 - モノレポ内の複数プロジェクトが同一 GitHub リポジトリを共有しても instinct データが競合しない
-- `config.yml` の `dolt.refs` を変更するだけで refs を切り替えられる
-- `instinct-cli setup` が自動推定するため、手動設定は最小限
+- `config.team.yml` の `dolt.refs` を変更するだけで refs を切り替えられる
+- `instinct init` / `instinct connect` が自動推定するため、手動設定は最小限
 - プロジェクト ID が URL + 相対パスのハッシュになることで、異なるマシン間でも同一プロジェクトを識別できる

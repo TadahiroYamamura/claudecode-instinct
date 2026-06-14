@@ -14,10 +14,10 @@ Accepted
 
 dedup を Haiku エージェントが担当し、判定結果を `dedup_decisions` テーブルに記録する。
 
-**dedup のトリガー**: `instinct-cli dedup` コマンドで手動実行（push 前の任意実行）。push 前の強制実行はしない。
+**dedup のトリガー**: `instinct dedup` コマンドで手動実行（push 前の任意実行）。push 前の強制実行はしない。
 
 **dedup のフロー**:
-1. `instinct-cli dedup` が対象ブランチの全 instinct を読み込む
+1. `instinct dedup` が対象ブランチの全 instinct を読み込む
 2. Haiku に渡して重複候補を検出させる
 3. 各判定（duplicate / distinct）を `reasoning` と3モデルのスコア（`sim_bigram`, `sim_trigram`, `sim_overlap`）とともに `dedup_decisions` に INSERT する
 4. duplicate と判定されたペアはマージ（`observation_count` を合算）し、一方を削除する

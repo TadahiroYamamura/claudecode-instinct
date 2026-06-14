@@ -60,17 +60,26 @@ claude plugin install claudecode-instinct@TadahiroYamamura
 
 ## 3. プロジェクトへのセットアップ
 
-instinct を記録したいプロジェクトのルートで一度だけ実行する。`.instinct-db/` が作成される。
+instinct を記録したいプロジェクトのルートで実行する。`.instinct-db/` が作成される。
+
+**リモート連携なし（ローカルのみ）**
 
 ```bash
 cd /path/to/your-project
-instinct setup
+instinct init
 ```
 
-対話形式で branch / team_branch / remote_url を確認・変更できる。Enter でデフォルト値を採用。`-y` フラグを付けると全項目デフォルトで非対話実行。
+**リモートリポジトリに接続する場合**
 
 ```bash
-instinct setup -y   # CI や自動化環境向け
+instinct connect -r git@github.com:ORG/REPO.git
+```
+
+対話形式で branch / team_branch を確認・変更できる。Enter でデフォルト値を採用。`-y` フラグを付けると全項目デフォルトで非対話実行。
+
+```bash
+instinct init -y      # 非対話実行
+instinct connect -y   # 非対話実行
 ```
 
 作成されるファイル。
@@ -78,12 +87,13 @@ instinct setup -y   # CI や自動化環境向け
 ```
 your-project/
 └── .instinct-db/
-    ├── data/         # Dolt DB 本体（git 管理外）
-    ├── .gitignore    # ランタイムファイルの除外ルール（自動生成）
-    └── config.yml    # プロジェクト固有設定（git 管理）
+    ├── data/              # Dolt DB 本体（git 管理外）
+    ├── .gitignore         # ランタイムファイルの除外ルール（自動生成）
+    ├── config.team.yml    # チーム共有設定（git 管理）
+    └── config.user.yml    # 個人設定（gitignore 対象）
 ```
 
-`config.yml` の初期内容（`instinct setup` が自動生成）。
+`config.team.yml` の初期内容（`instinct init` / `instinct connect` が自動生成）。
 
 ```yaml
 observer:
@@ -92,19 +102,23 @@ observer:
   active_hours: "800-2300"
 
 confidence:
-  thresholds:
-    low: 3
-    medium: 6
-    high: 11
+  review_min: 6
 
 dedup:
   auto_run_before_push: false
+  similarity_threshold: 0.15
 
 dolt:
-  refs: refs/dolt/your-project/
-  branch: tadahiro                        # git config user.name から自動取得
-  team_branch: main                       # チームブランチ名
-  remote_url: git@github.com:org/repo.git # git remote origin から自動取得
+  refs: refs/dolt/your-project/    # モノレポ対応 namespace（ディレクトリ名から自動設定）
+  team_branch: main                 # チームブランチ名
+  remote_url: git@github.com:org/repo.git  # connect 時に設定
+```
+
+`config.user.yml` の初期内容（個人ブランチ名を保持・gitignore 対象）。
+
+```yaml
+dolt:
+  branch: tadahiro    # git config user.name から自動設定（スペース→_・大文字→小文字）
 ```
 
 ## 4. 動作確認
@@ -118,15 +132,11 @@ claude
 ```
 
 20 ツール操作が蓄積されると observer-loop が自動的に instinct 生成を試みる。
-生成された instinct は次のコマンドで確認できる（`list` サブコマンドは Phase 2 実装予定）。
-
-現時点では `instinct list` が未実装（Phase 2 予定）のため、Dolt CLI で直接確認する。
+生成された instinct は次のコマンドで確認できる。
 
 ```bash
-dolt --data-dir=.instinct-db/data sql -q "SELECT content, trigger_desc, scope FROM instincts ORDER BY created_at DESC LIMIT 10"
+instinct list
 ```
-
-Dolt CLI がなければ MySQL クライアント（mysql コマンド）でも接続できる。
 
 ## アンインストール
 

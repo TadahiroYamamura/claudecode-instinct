@@ -38,17 +38,31 @@ instinct list --merged
 ```bash
 # 自分のブランチ内の重複を排除（Haiku エージェントが判定）
 instinct dedup
+```
 
-# 複数の個人ブランチを横断して重複排除
-instinct dedup --cross-branch tadahiro,kenji,alice
+### チームへの推薦（nominate）
+
+```bash
+# 推薦候補一覧（observation_count が閾値以上かつ main 未マージ）
+instinct nominate list
+
+# 指定 ID を review_queue に登録
+instinct nominate <id...>
+```
+
+### レビューキューの確認・承認（review）
+
+```bash
+# review_queue の一覧を表示
+instinct review list
+
+# 指定 ID を承認してチームブランチに昇格
+instinct review approve <id...>
 ```
 
 ### チームとの共有（push）
 
 ```bash
-# レビュー待ちキュー（main にない新規 instinct）を確認
-instinct review
-
 # 個人ブランチを GitHub に push
 instinct push
 ```
@@ -67,33 +81,29 @@ instinct pull
 チームで instinct を共有する際の標準的な流れ。
 
 ```
-1. 各メンバーが instinct push で個人ブランチを push
+1. 各メンバーが instinct nominate <id...> で推薦候補を review_queue に登録
 
-2. レビュー担当者が instinct review で候補を確認
-   （main にない、新規追加された instinct の一覧）
+2. 各メンバーが instinct push で個人ブランチを push
 
-3. 必要に応じて instinct dedup --cross-branch で
-   メンバー間の重複を排除
+3. レビュー担当者が instinct review list で review_queue を確認
 
-4. 手動レビュー・承認
+4. レビュー担当者が instinct review approve <id...> で承認・チームブランチへ昇格
 
-5. main ブランチにマージ
-
-6. 各メンバーが instinct pull で取得
+5. 各メンバーが instinct pull でチームブランチを取得
 ```
 
 ---
 
 ## モノレポでの利用
 
-同一 GitHub リポジトリに複数プロジェクトがある場合、`config.yml` の `dolt.refs` でプロジェクトごとに異なる namespace を設定する。
+同一 GitHub リポジトリに複数プロジェクトがある場合、`config.team.yml` の `dolt.refs` でプロジェクトごとに異なる namespace を設定する。
 
 ```yaml
-# our-project の config.yml
+# our-project の config.team.yml
 dolt:
   refs: "refs/dolt/our-project"
 
-# their-project の config.yml
+# their-project の config.team.yml
 dolt:
   refs: "refs/dolt/their-project"
 ```
@@ -115,11 +125,6 @@ claude --bare -p "your prompt" --allowedTools "Read,Edit,Bash"
 ## dedup_decisions の活用
 
 `instinct dedup` の実行結果は `.instinct-db/data/` の `dedup_decisions` テーブルに記録される。「何を同じとみなしたか」の判断データが蓄積され、将来的な dedup モデルの訓練データとして活用できる。
-
-```bash
-# Haiku の判定に誤りがあった場合は human_label で訂正
-instinct dedup-label <decision-id> --label wrong
-```
 
 ---
 
