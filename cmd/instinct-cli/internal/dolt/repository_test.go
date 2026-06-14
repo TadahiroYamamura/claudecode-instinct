@@ -344,3 +344,22 @@ func TestRepository_SubmitToReviewQueue_InsertsOnTeamBranch(t *testing.T) {
 		t.Errorf("expected 1 record in review_queue, got %d", count)
 	}
 }
+
+// CreateBranchはDoltブランチを作成する
+func TestRepository_CreateBranch(t *testing.T) {
+	ctx, conn, repo := setupTestRepo(t)
+
+	if err := repo.CreateBranch(ctx, "my-branch"); err != nil {
+		t.Fatalf("CreateBranch: %v", err)
+	}
+
+	var count int
+	if err := conn.QueryRowContext(ctx,
+		"SELECT COUNT(*) FROM dolt_branches WHERE name = ?", "my-branch",
+	).Scan(&count); err != nil {
+		t.Fatalf("query dolt_branches: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("expected branch my-branch to exist")
+	}
+}

@@ -1,0 +1,17 @@
+{
+  "head": "refs/heads/main",
+  "remotes": {
+    "origin": {
+      "name": "origin",
+      "url": "git+ssh://git@github.com/TadahiroYamamura/claudecode-instinct.git",
+      "fetch_specs": [
+        "refs/heads/*:refs/remotes/origin/*"
+      ],
+      "params": {
+        "git_ref": "refs/dolt/sample"
+      }
+    }
+  },
+  "backups": {},
+  "branches": {}
+}

@@ -183,6 +183,11 @@ func (r *Repository) Checkout(ctx context.Context, branch string) error {
 	return err
 }
 
+func (r *Repository) CreateBranch(ctx context.Context, branch string) error {
+	_, err := r.conn.ExecContext(ctx, "CALL dolt_checkout('-b', ?)", branch)
+	return err
+}
+
 func (r *Repository) Commit(ctx context.Context, message string) error {
 	_, err := r.conn.ExecContext(ctx, "CALL dolt_commit('-Am', ?)", message)
 	return err

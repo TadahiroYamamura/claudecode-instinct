@@ -49,4 +49,5 @@ type Repository interface {
 	Sync(ctx context.Context, remote, branch string) error
 	EnsureRemote(ctx context.Context, refs, remoteURL string)
 	Checkout(ctx context.Context, branch string) error
+	CreateBranch(ctx context.Context, branch string) error
 }

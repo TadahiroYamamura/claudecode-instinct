@@ -78,6 +78,7 @@ type stubRepository struct {
 	sync                 func(ctx context.Context, remote, branch string) error
 	ensureRemote         func(ctx context.Context, refs, remoteURL string)
 	checkout             func(ctx context.Context, branch string) error
+	createBranch         func(ctx context.Context, branch string) error
 }
 
 func (s *stubRepository) InsertInstinct(ctx context.Context, p InsertParams) (string, error) {
@@ -166,6 +167,13 @@ func (s *stubRepository) EnsureRemote(ctx context.Context, refs, remoteURL strin
 func (s *stubRepository) Checkout(ctx context.Context, branch string) error {
 	if s.checkout != nil {
 		return s.checkout(ctx, branch)
+	}
+	return nil
+}
+
+func (s *stubRepository) CreateBranch(ctx context.Context, branch string) error {
+	if s.createBranch != nil {
+		return s.createBranch(ctx, branch)
 	}
 	return nil
 }
