@@ -34,7 +34,7 @@ PROMPT
   local claude_output
   claude_output=$(claude --model "${INSTINCT_CLAUDE_MODEL:-haiku}" --print "$prompt" 2>/dev/null) || return 0
 
-  instinct-cli pull 2>/dev/null || true
+  instinct pull 2>/dev/null || true
 
   echo "$claude_output" | python3 -c "
 import json, sys, subprocess, os
@@ -56,7 +56,7 @@ for item in data:
     if not content:
         continue
     result = subprocess.run(
-        ['instinct-cli', 'insert',
+        ['instinct', 'insert',
          '--content', content,
          '--trigger', trigger,
          '--domain', domain,
@@ -69,7 +69,7 @@ for item in data:
 
 if inserted > 0:
     subprocess.run(
-        ['instinct-cli', 'commit', '-m', f'observer: {inserted} instincts'],
+        ['instinct', 'commit', '-m', f'observer: {inserted} instincts'],
         env=os.environ, capture_output=True
     )
 " 2>/dev/null || true
